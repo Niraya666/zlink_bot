@@ -2,5 +2,7 @@ node_modules/
 .env
 data/
 *.sqlite
-.claude/
+# 本地 Claude Code 配置忽略，但 skills 随仓库分发
+.claude/*
+!.claude/skills/
 .DS_Store
