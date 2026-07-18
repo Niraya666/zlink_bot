@@ -2,6 +2,7 @@ import { createBot } from "./ilink-client.js";
 import { initDatabase } from "./db.js";
 import { callClaude } from "./llm.js";
 import { createConversationHandler } from "./conversation.js";
+import { startServer, state } from "./server.js";
 
 async function main() {
   console.log("iLink Bot 原型启动中...");
@@ -10,8 +11,23 @@ async function main() {
   const db = initDatabase();
   console.log("✓ SQLite 数据库已就绪");
 
-  // Create WeChat bot
-  const bot = createBot();
+  // Start web dashboard
+  const server = startServer(db);
+
+  // Create WeChat bot with QR callbacks wired to web dashboard
+  const bot = createBot({
+    loginCallbacks: {
+      onQrUrl: (url) => {
+        console.log("📱 请扫描二维码绑定微信账号：");
+        console.log(url);
+        state.botStatus = "waiting_qr";
+        state.qrUrl = url;
+      },
+      onScanned: () => {
+        console.log("✓ 已扫码，请在手机上确认登录...");
+      },
+    },
+  });
   const handleMessage = createConversationHandler(db, callClaude);
 
   // Register message handler
@@ -24,31 +40,47 @@ async function main() {
     await handleMessage(msg, replyFn);
   });
 
-  // Handle session expiry
+  // Lifecycle events -> update dashboard state
   bot.on("session:expired", () => {
     console.log("⚠ 会话已过期，需要重新扫码登录");
+    state.botStatus = "waiting_qr";
+    state.qrUrl = null;
+  });
+
+  bot.on("session:restored", () => {
+    state.botStatus = "running";
+    state.qrUrl = null;
   });
 
   bot.on("error", (err) => {
     console.error("Bot error:", err.message);
+    state.botStatus = "error";
+    state.errorMessage = err.message;
   });
 
   // Start (login + poll)
   try {
     console.log("正在登录 iLink...");
     await bot.run();
+    state.botStatus = "running";
+    state.qrUrl = null;
     console.log("✓ 已登录并开始接收消息");
   } catch (err) {
     console.error("启动失败:", err.message);
-    process.exit(1);
+    state.botStatus = "error";
+    state.errorMessage = err.message;
+    // Keep server running so dashboard shows the error
   }
 
   // Graceful shutdown
-  process.on("SIGINT", async () => {
+  const shutdown = async () => {
     console.log("\n正在关闭...");
     await bot.stop();
+    server.close();
     process.exit(0);
-  });
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 main();

@@ -121,5 +121,20 @@ export function initDatabase() {
         .get(wechatUid);
       return row?.token ?? null;
     },
+
+    getUserSummaries() {
+      return db
+        .prepare(
+          `SELECT u.wechat_uid, u.status, u.created_at,
+                  MAX(CASE WHEN pf.field = 'name' THEN pf.value END) as name,
+                  MAX(CASE WHEN pf.field = 'wechat_contact' THEN pf.value END) as wechat_contact,
+                  MAX(CASE WHEN pf.field = 'intent_confirmed' THEN pf.value END) as intent_confirmed
+           FROM users u
+           LEFT JOIN profile_fields pf ON pf.user_id = u.id
+           GROUP BY u.id
+           ORDER BY u.created_at DESC`,
+        )
+        .all();
+    },
   };
 }

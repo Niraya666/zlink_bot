@@ -10,6 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
     "@wechatbot/wechatbot": "^2.2.0",
-    "better-sqlite3": "^12.11.1"
+    "better-sqlite3": "^12.11.1",
+    "qrcode": "^1.5.4"
   }
 }
