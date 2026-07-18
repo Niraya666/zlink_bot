@@ -1,0 +1,15 @@
+{
+  "name": "ilink-bot-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "iLink Bot local prototype on Mac mini — WeChat bot with Claude-powered conversations",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
+    "@wechatbot/wechatbot": "^2.2.0",
+    "better-sqlite3": "^12.11.1"
+  }
+}
