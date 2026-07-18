@@ -7,10 +7,12 @@
   "scripts": {
     "start": "node --env-file=.env src/index.js"
   },
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
     "@wechatbot/wechatbot": "^2.2.0",
-    "better-sqlite3": "^12.11.1",
     "qrcode": "^1.5.4"
   }
 }

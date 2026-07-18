@@ -28,10 +28,10 @@
 
 | 层 | 选型 |
 |---|---|
-| 运行时 | Node.js ≥ 18（内置 `fetch`） |
+| 运行时 | Node.js ≥ 22.5（内置 `fetch` 与 `node:sqlite`） |
 | 微信接入 | 社区 SDK：`epiral/weixin-bot` 或 `the-yex/wechat-ilink-sdk`，或参照 wechatbot.dev 协议自实现 |
 | LLM | Anthropic Claude Messages API + tool use |
-| 数据库 | SQLite，通过 `better-sqlite3` 或 Node 内置 `node:sqlite` |
+| 数据库 | SQLite，使用 Node 内置 `node:sqlite`（无需原生编译；实现见 `src/db.js`） |
 | 进程守护 | `launchd` 或 `pm2`（先手动跑，稳定后再上） |
 
 ## 目录结构（计划）

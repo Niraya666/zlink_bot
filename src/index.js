@@ -14,20 +14,23 @@ async function main() {
   // Start web dashboard
   const server = startServer(db);
 
-  // Create WeChat bot with QR callbacks wired to web dashboard
-  const bot = createBot({
-    loginCallbacks: {
-      onQrUrl: (url) => {
-        console.log("📱 请扫描二维码绑定微信账号：");
-        console.log(url);
-        state.botStatus = "waiting_qr";
-        state.qrUrl = url;
-      },
-      onScanned: () => {
-        console.log("✓ 已扫码，请在手机上确认登录...");
-      },
+  // QR login callbacks wired to the web dashboard.
+  // NOTE: @wechatbot/wechatbot ignores `loginCallbacks` passed to the
+  // constructor — callbacks are only honored when passed to run()/login().
+  const loginCallbacks = {
+    onQrUrl: (url) => {
+      console.log("📱 请扫描二维码绑定微信账号：");
+      console.log(url);
+      state.botStatus = "waiting_qr";
+      state.qrUrl = url;
     },
-  });
+    onScanned: () => {
+      console.log("✓ 已扫码，请在手机上确认登录...");
+    },
+  };
+
+  // Create WeChat bot
+  const bot = createBot();
   const handleMessage = createConversationHandler(db, callClaude);
 
   // Register message handler
@@ -61,7 +64,7 @@ async function main() {
   // Start (login + poll)
   try {
     console.log("正在登录 iLink...");
-    await bot.run();
+    await bot.run({ callbacks: loginCallbacks });
     state.botStatus = "running";
     state.qrUrl = null;
     console.log("✓ 已登录并开始接收消息");

@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
@@ -9,10 +9,14 @@ const DB_PATH = path.join(DATA_DIR, "bot.sqlite");
 export function initDatabase() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
-  const db = new Database(DB_PATH);
+  // Uses Node's built-in SQLite (node:sqlite, available from Node 22.5+),
+  // so there is no native module to compile. DatabaseSync's prepare/run/get/all
+  // API is API-compatible with the subset of better-sqlite3 used below.
+  const db = new DatabaseSync(DB_PATH);
 
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+  // node:sqlite has no .pragma() helper — use exec() with PRAGMA statements.
+  db.exec("PRAGMA journal_mode = WAL");
+  db.exec("PRAGMA foreign_keys = ON");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (

@@ -6,7 +6,7 @@
 
 ### 1. 环境要求
 
-- Node.js >= 22
+- Node.js >= 22.5（数据库使用内置的 `node:sqlite`，无需原生编译）
 - 一个微信机器人账号（通过 iLink 协议接入）
 
 ### 2. 安装
@@ -62,7 +62,7 @@ src/
 ├── ilink-client.js    # iLink SDK 封装（QR 登录、消息收发）
 ├── conversation.js    # 对话处理：拼 system prompt → 调 LLM → 处理 tool calls
 ├── llm.js             # DeepSeek API 封装（Anthropic 兼容模式）+ tool 定义
-└── db.js              # SQLite 初始化 + CRUD
+└── db.js              # SQLite 初始化 + CRUD（node:sqlite）
 config/
 └── questions.json     # 问题清单配置
 data/
@@ -82,7 +82,7 @@ data/
 
 | 层 | 选型 |
 |---|---|
-| 运行时 | Node.js |
+| 运行时 | Node.js ≥ 22.5 |
 | 微信接入 | @wechatbot/wechatbot SDK |
 | LLM | DeepSeek（Anthropic Messages API 兼容端点） |
-| 数据库 | SQLite（better-sqlite3） |
+| 数据库 | SQLite（Node 内置 `node:sqlite`，无需原生编译） |
