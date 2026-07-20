@@ -283,11 +283,12 @@ zlink export <activity>  # 导出报名数据（JSON / CSV）
 3. **测试免费获得**：`test-activity` 的角色扮演式验证在 CLI 方案里
    很难做得同样自然
 
-**v1 兼容桥**：在迁移路径完成前（运行时仍读 `config/questions.json`），
-`new-activity` / `edit-activity` 会把 pack 中 v1 可表达的部分同步写入
-`config/questions.json`，让新活动立即可跑；无法表达的部分（自定义话术、
-可选字段、flow.md 正文策略）在迁移到 v2 运行时后自动生效。
-桥的映射表维护在 `new-activity` 的 SKILL.md 内，迁移完成后移除该步骤。
+**校验闭环**：`new-activity` / `edit-activity` 在写完文件后都会调用加载器
+（`loadActivity(slug)`）验证一遍——加载器会一次性列出全部问题并指明文件与字段，
+所以配置错误在生成时就被拦住，而不是等到启动才炸。
+
+> v1 兼容桥（向 `config/questions.json` 同步）已随 Phase 2 移除：运行时现在只读
+> activity pack，`config/questions.json` 不再存在。
 
 **注意**：skills 生成的是配置，真实运行时的模型是 DeepSeek——
 `test-activity` 检验的是 prompt 设计本身，不能完全代表线上模型表现。

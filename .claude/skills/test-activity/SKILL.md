@@ -15,8 +15,8 @@ description: 上线前模拟测试一场活动的对话流程。当用户想检�
 按运行时的方式拼出报名助手会拿到的完整 prompt：
 
 - 读取 pack 的 `flow.md`（frontmatter + 正文）和 `fields.json`
-- 若还是 v1 结构，读 `src/conversation.js` 的 `buildSystemPrompt` + `config/questions.json`，
-  按其逻辑组装
+- 按 `src/conversation.js` 的 `buildSystemPrompt` 逻辑拼装：flow.md 正文 + 必收字段清单 +
+  已收集/缺失状态 + 语气/严格程度 + 工具调用规则 + 开场白
 - 已收集字段从「暂无」开始
 
 ### 2. 角色扮演

@@ -8,8 +8,7 @@ description: 修改已有活动 pack 的配置。当用户想调整某场活动�
 ## 流程
 
 1. **定位 pack**：列出 `activities/` 下的目录；用户没指明哪场活动且存在多个时，先问。
-   若 `activities/` 不存在或为空，但 `config/questions.json` 存在，说明还是纯 v1 配置——
-   建议先用 new-activity skill 把它升级成 pack，或直接改 `config/questions.json`（按用户意愿）。
+   若 `activities/` 不存在或为空，用 new-activity skill 先创建。
 
 2. **展示现状**：读取 pack 三个文件，用一张摘要表展示当前配置（字段、语气、开关、话术），
    让用户确认要改哪里。
@@ -23,7 +22,12 @@ description: 修改已有活动 pack 的配置。当用户想调整某场活动�
    - flow.md 正文的引导策略修改后，保持 frontmatter 与 activity.json 的一致性
      （`close_when_complete` 只在 activity.json，`opening`/`tone` 只在 flow.md，不要两处重复）
 
-4. **v1 兼容桥**：若 `src/conversation.js` 仍读 `config/questions.json` 且该活动是当前
-   运行的活动，按 new-activity skill §4 的映射表重新同步一次。
+4. **校验**：改完跑一次加载器，确认 pack 仍合法：
+
+   ```bash
+   node -e "import('./src/activity.js').then(m=>{m.loadActivity('<slug>');console.log('OK')})"
+   ```
 
 5. **收尾**：摘要展示改动前后差异；改动涉及引导策略时建议跑一次 test-activity。
+
+> 运行中的机器人每收一条消息都会重新加载 pack，所以配置改动无需重启即可生效。

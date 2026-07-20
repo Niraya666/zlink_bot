@@ -6,7 +6,7 @@ import { initDatabase } from "./db.js";
 import { callClaude } from "./llm.js";
 import { createConversationHandler } from "./conversation.js";
 import { startServer, state } from "./server.js";
-import { loadActivityConfig } from "./config.js";
+import { loadActivity } from "./activity.js";
 
 // Where the SDK persists login state (must match FileStorage's default dir).
 const STORAGE_DIR =
@@ -19,20 +19,20 @@ function hasSavedLogin() {
 async function main() {
   console.log("iLink Bot 原型启动中...");
 
-  const activity = loadActivityConfig();
-  console.log(`活动：${activity.eventName}（${activity.eventId}）`);
+  const activity = loadActivity();
+  console.log(`活动：${activity.name}（${activity.slug}）`);
 
   // Initialize database — scoped to this activity
   const db = initDatabase({
-    eventId: activity.eventId,
-    eventName: activity.eventName,
+    eventId: activity.slug,
+    eventName: activity.name,
   });
   console.log("✓ SQLite 数据库已就绪");
 
   // Start web dashboard — table columns follow the activity's field schema
   const server = startServer(db, {
     fields: activity.fields,
-    eventName: activity.eventName,
+    eventName: activity.name,
   });
 
   // QR login callbacks wired to the web dashboard.
@@ -122,4 +122,9 @@ async function main() {
   process.on("SIGTERM", shutdown);
 }
 
-main();
+// Pack loading / validation errors are user-facing config problems —
+// show the message, not a stack trace.
+main().catch((err) => {
+  console.error(`\n启动失败：\n${err.message}\n`);
+  process.exit(1);
+});

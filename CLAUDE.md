@@ -37,22 +37,31 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 | 数据库 | SQLite，使用 Node 内置 `node:sqlite`（无需原生编译；实现见 `src/db.js`） |
 | 进程守护 | `launchd` 或 `pm2`（先手动跑，稳定后再上） |
 
-## 目录结构（计划）
+## 目录结构
 
 ```
-├── config/
-│   └── questions.json       # 问题清单配置
+├── activities/
+│   └── <slug>/              # 活动 pack（配置的唯一事实来源）
+│       ├── activity.json    # 元信息与开关
+│       ├── fields.json      # 字段 schema
+│       └── flow.md          # 引导策略（frontmatter + prompt 正文）
 ├── src/
+│   ├── activity.js          # pack 加载 + 校验 + 活动选择
 │   ├── ilink-client.js      # 长轮询、QR 登录、context_token 管理
 │   ├── conversation.js      # buildSystemPrompt + handleIncomingMessage
-│   ├── llm.js               # 封装 Claude API 调用 + tool 定义
-│   ├── db.js                # SQLite 初始化 + CRUD
-│   └── index.js             # 启动入口：登录 → 长轮询循环
+│   ├── llm.js               # 封装 LLM API 调用 + tool 定义
+│   ├── db.js                # SQLite 初始化 + CRUD（按 event_id 作用域化）
+│   ├── server.js            # 网页控制台
+│   ├── relogin.js           # 清除登录态，强制重新扫码
+│   └── index.js             # 启动入口：加载活动 → 登录 → 长轮询循环
 ├── data/
 │   └── bot.sqlite           # 本地数据库文件
-├── .env                     # ANTHROPIC_API_KEY 等
+├── .env                     # DEEPSEEK_API_KEY 等
 └── package.json
 ```
+
+Phase 4 会把 `src/` 重排为 `core/`（channel / engine / store / dashboard），
+详见 `docs/architecture-v2.md` §3。
 
 ## 数据模型（5 张表）
 
@@ -86,23 +95,28 @@ Claude 工具定义：
 - `save_profile_field(field, value)` — 记录收集到的画像字段
 - `mark_complete()` — 标记对话完成
 
-## 问题清单配置
+## 活动 Pack 配置
 
-`config/questions.json` 结构（Phase 2 将迁移为 `activities/<slug>/` pack）：
-- `event_id` / `event_name` — 活动标识与名称（可被环境变量 `ACTIVITY` 覆盖）
-- `field_labels` — 字段展示名映射，驱动 dashboard 表头
-- `opening` — 开场白
-- `required_fields` — 必收字段（如 `["name", "wechat_contact", "intent_confirmed"]`）
-- `key_questions` — 需融入对话的问题列表
-- `tone` — 语气（如 "轻松、口语化"）
-- `strictness` — 宽松度（"lenient"）
-- `close_when_complete` — 收齐后是否结束对话（控制轮次的关键开关）
+活动配置的唯一事实来源是 `activities/<slug>/`，规范见 `docs/architecture-v2.md` §4：
+
+- **activity.json** — `name`、`close_when_complete`、`reentry_message`、`completion_message`
+- **fields.json** — `fields: [{key, label, type, required}]`；`key` 须 snake_case，
+  `type` 限 `string` / `boolean`。同时驱动必收字段判定与 dashboard 列
+- **flow.md** — frontmatter（`tone` / `strictness` / `opening`）+ 正文（引导策略 prompt）
+
+`src/activity.js` 负责加载与校验：一次性列出全部错误并指明文件与字段。
+活动选择用环境变量 `ACTIVITY`；只有一个 pack 时可省略，多个时不指定会报错拒绝启动。
+`conversation.js` 每收一条消息重新加载 pack，改配置无需重启。
+
+创建/修改/测试活动用 `.claude/skills/` 下的 `new-activity` / `edit-activity` / `test-activity`。
 
 ## 运行方式
 
 ```bash
 npm install
-node src/index.js
+npm start                        # activities/ 下只有一个活动时
+ACTIVITY=<slug> npm start        # 有多个活动时指定
+npm run relogin                  # 清除登录态，强制重新扫码
 # 首次运行打印二维码链接，扫码绑定
 ```
 

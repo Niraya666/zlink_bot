@@ -1,0 +1,22 @@
+{
+  "fields": [
+    {
+      "key": "name",
+      "label": "姓名",
+      "type": "string",
+      "required": true
+    },
+    {
+      "key": "wechat_contact",
+      "label": "微信号",
+      "type": "string",
+      "required": true
+    },
+    {
+      "key": "intent_confirmed",
+      "label": "意向",
+      "type": "boolean",
+      "required": true
+    }
+  ]
+}

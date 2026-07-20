@@ -31,25 +31,32 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-对话行为由 `config/questions.json` 控制：
+对话行为由**活动 pack** 控制——`activities/<slug>/` 下的三个文件：
 
-```json
-{
-  "opening": "开场白",
-  "required_fields": ["name", "wechat_contact", "intent_confirmed"],
-  "key_questions": ["问题1", "问题2"],
-  "tone": "轻松、口语化",
-  "close_when_complete": true
-}
+```
+activities/demo-day-2026/
+├── activity.json   # 元信息与开关（名称、close_when_complete、收尾话术）
+├── fields.json     # 字段 schema（key / label / type / required）
+└── flow.md         # 引导策略：frontmatter（tone/strictness/opening）+ 正文 prompt
 ```
 
-- `required_fields` — 必收字段，全部收齐后自动结束对话
-- `close_when_complete` — 设为 `true` 时，收齐后不再继续提问
+- `fields.json` 同时驱动三处：必收字段判定、字段记录、控制台表格的列
+- `close_when_complete` 设为 `true` 时，必收字段收齐即自动收尾
+- 机器人每收一条消息都会重新加载 pack，**改配置无需重启**
+
+创建和修改活动不用手写文件——在 Claude Code 里用 `new-activity` / `edit-activity`
+skill 对话式完成，`test-activity` 可在上线前模拟一遍对话。
 
 ### 4. 运行
 
 ```bash
 npm start
+```
+
+`activities/` 下有多个活动时，需指定跑哪个：
+
+```bash
+ACTIVITY=demo-day-2026 npm start
 ```
 
 首次运行会打印二维码链接，用微信扫码绑定机器人。之后任何人给这个微信号发消息，都会进入对话流程。
@@ -74,14 +81,16 @@ npm start         # 重新显示二维码
 
 ```
 src/
-├── index.js           # 入口：登录 → 长轮询循环
+├── index.js           # 入口：加载活动 → 登录 → 长轮询循环
+├── activity.js        # 活动 pack 加载与校验
 ├── ilink-client.js    # iLink SDK 封装（QR 登录、消息收发）
 ├── conversation.js    # 对话处理：拼 system prompt → 调 LLM → 处理 tool calls
 ├── llm.js             # DeepSeek API 封装（Anthropic 兼容模式）+ tool 定义
-├── db.js              # SQLite 初始化 + CRUD（node:sqlite）
+├── db.js              # SQLite 初始化 + CRUD（node:sqlite），按活动作用域化
+├── server.js          # 网页控制台（状态 / 二维码 / 报名列表）
 └── relogin.js         # 清除已保存登录态（npm run relogin），强制重新扫码
-config/
-└── questions.json     # 问题清单配置
+activities/
+└── <slug>/            # 活动 pack：activity.json + fields.json + flow.md
 data/
 └── bot.sqlite         # 运行时自动创建
 ```

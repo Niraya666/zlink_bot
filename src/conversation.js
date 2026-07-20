@@ -1,9 +1,9 @@
 import { TOOLS } from "./llm.js";
-import { loadActivityConfig } from "./config.js";
+import { loadActivity } from "./activity.js";
 
 const MAX_TOOL_ITERATIONS = 5;
 
-export function buildSystemPrompt(config, collected) {
+export function buildSystemPrompt(activity, collected) {
   const collectedStr =
     Object.keys(collected).length > 0
       ? Object.entries(collected)
@@ -11,37 +11,31 @@ export function buildSystemPrompt(config, collected) {
           .join("\n")
       : "（暂无）";
 
-  const missingFields = config.required_fields.filter(
+  const missingFields = activity.requiredFields.filter(
     (f) => !(f in collected),
   );
   const missingStr =
     missingFields.length > 0 ? missingFields.join("、") : "无，已全部收齐";
 
-  const questionsStr = config.key_questions
-    .map((q, i) => `${i + 1}. ${q}`)
-    .join("\n");
+  // The activity's own guidance (flow.md body). Phase 3 makes this the whole
+  // prompt body; for now it replaces the hardcoded narrative + question list.
+  return `${activity.flow.body}
 
-  return `你是活动报名助手。你的任务是自然地聊天，同时完成三件事：
-1. 传达活动的价值观方向，观察对方是否认同（不用打分，先记录印象）
-2. 确认对方是否会来参加
-3. 收集这些信息：${config.required_fields.join("、")}
+需要收集这些信息：${activity.requiredFields.join("、")}
 
 已经收集到的信息：
 ${collectedStr}
 
 还差以下必收字段：${missingStr}
 
-问题清单（不用逐条照念，融进对话里问）：
-${questionsStr}
-
-语气要求：${config.tone}
-严格程度：${config.strictness}
+语气要求：${activity.flow.tone}
+严格程度：${activity.flow.strictness}
 
 规则：
 - 用户一旦提供了任何必收字段相关的信息，必须立即调用 save_profile_field 工具记录，不要犹豫
 - 每轮只问 1-2 个问题，别一次甩一堆
-- 记录完信息后，自然地继续对话，追问尚未收集的字段${config.close_when_complete ? "\n- 必收字段全部收齐后，必须调用 mark_complete 工具，然后自然收尾，别继续硬聊" : ""}
-- 开场白：「${config.opening}」`;
+- 记录完信息后，自然地继续对话，追问尚未收集的字段${activity.closeWhenComplete ? "\n- 必收字段全部收齐后，必须调用 mark_complete 工具，然后自然收尾，别继续硬聊" : ""}
+- 开场白：「${activity.flow.opening}」`;
 }
 
 export function createConversationHandler(db, callClaude) {
@@ -51,11 +45,12 @@ export function createConversationHandler(db, callClaude) {
 
     const user = db.getOrCreateUser(wechatUid);
 
+    // Reloaded per message so pack edits take effect without a restart.
+    const activity = loadActivity();
+
     // Skip if user already completed or dropped
     if (user.status === "completed" || user.status === "dropped") {
-      await replyFn(
-        "你之前已经完成过对话啦，如有疑问请联系活动组织者～",
-      );
+      await replyFn(activity.reentryMessage);
       return;
     }
 
@@ -63,30 +58,20 @@ export function createConversationHandler(db, callClaude) {
 
     const history = db.getRecentMessages(user.id, 20);
     const collected = db.getProfileFields(user.id);
-    // Reloaded per message so config edits take effect without a restart.
-    const config = loadActivityConfig();
 
     // If close_when_complete is on and all required fields are collected,
     // auto-close without calling Claude
-    if (config.close_when_complete) {
-      const missing = config.required_fields.filter(
-        (f) => !(f in collected),
-      );
+    if (activity.closeWhenComplete) {
+      const missing = activity.requiredFields.filter((f) => !(f in collected));
       if (missing.length === 0) {
         db.updateUserStatus(user.id, "completed");
-        db.saveMessage(
-          user.id,
-          "assistant",
-          "好啦，你的信息我都记下了！感谢配合，如有变动随时联系我～",
-        );
-        await replyFn(
-          "好啦，你的信息我都记下了！感谢配合，如有变动随时联系我～",
-        );
+        db.saveMessage(user.id, "assistant", activity.completionMessage);
+        await replyFn(activity.completionMessage);
         return;
       }
     }
 
-    const systemPrompt = buildSystemPrompt(config, collected);
+    const systemPrompt = buildSystemPrompt(activity, collected);
 
     let responseText;
     try {

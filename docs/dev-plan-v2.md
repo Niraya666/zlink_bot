@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 0 | Claude Code skills（配置活动） | ✅ 已完成（7549e75） | 无 |
 | 1 | 数据层：event_id + schema 驱动 | ✅ 已完成 | 无 |
-| 2 | Activity pack：目录结构 + 加载校验 | ⬜ 未开始 | Phase 1 |
+| 2 | Activity pack：目录结构 + 加载校验 | ✅ 已完成 | Phase 1 |
 | 3 | Prompt 渲染：flow.md 接管对话策略 | ⬜ 未开始 | Phase 2 |
 | 4 | 目录重排 core/ + CLI | ⬜ 未开始 | Phase 3 |
 | 5 | 逃生舱：tools.js + views/ | ⬜ 未开始 | Phase 4 |
@@ -46,19 +46,23 @@
 
 **目标**：`activities/<slug>/` 成为活动配置的唯一事实来源。
 
-- [ ] 2.1 手工创建第一个 pack `activities/demo-day-2026/`：
-      把 `config/questions.json` 拆为 `activity.json` + `fields.json` + `flow.md`（格式见架构文档 §4）
-- [ ] 2.2 实现 pack 加载器（`src/activity.js`，Phase 4 再挪进 core/）：
-      读目录 → 解析三个文件（flow.md 用简单 frontmatter 解析，不引依赖）→ 返回统一 activity 对象
-- [ ] 2.3 加载校验：缺文件 / JSON 非法 / 字段 key 非 snake_case / type 不在 string|boolean → 启动即报错，错误信息指明文件和字段
-- [ ] 2.4 `conversation.js` / `index.js` / `server.js` 改为从 activity 对象取配置；
-      `close_when_complete`、重入话术、完成话术从 `activity.json` 读取（替换硬编码）
-- [ ] 2.5 活动选择：环境变量 `ACTIVITY`（默认取 `activities/` 下唯一的 pack；多个且未指定则报错）
-- [ ] 2.6 删除 `config/questions.json`；**同步删除 skills 里的 v1 兼容桥**：
-      `new-activity` SKILL.md §4、`edit-activity` 第 4 步、架构文档 §8 的桥说明
-- [ ] 2.7 用 `new-activity` skill 生成一个第二活动，验证加载器对生成产物的兼容性
+- [x] 2.1 创建第一个 pack `activities/demo-day-2026/`（activity.json + fields.json + flow.md）
+- [x] 2.2 实现 pack 加载器 `src/activity.js`：frontmatter 用极简 `key: value` 解析器，不引依赖
+- [x] 2.3 加载校验：缺文件 / JSON 非法 / key 非 snake_case / key 重复 / type 越界 /
+      slug 与目录名不符 / 无必收字段 / frontmatter 缺失 —— **一次性列出全部问题**，
+      每条指明文件与字段；`index.js` 顶层捕获，只印消息不印堆栈
+- [x] 2.4 `conversation.js` / `index.js` / `server.js` 全部改从 activity 对象取配置；
+      重入话术与完成话术从 `activity.json` 读取（原硬编码已清除）
+- [x] 2.5 活动选择：`ACTIVITY` 环境变量；单 pack 时可省略，多个未指定则报错并列出候选与示例命令
+- [x] 2.6 删除 `config/questions.json` 与 `src/config.js`；同步拆除三个 skill 里的 v1 兼容桥，
+      改为「写完调加载器校验」；架构文档 §8、README、CLAUDE.md 一并更新
+- [x] 2.7 按 `new-activity` SKILL.md 模板构造 pack 验证兼容性（含可选字段、starts_at、自定义话术）
 
-**验收**：现有对话行为不变（同样的开场白、字段收集、收尾）；故意写坏 fields.json 能得到可读的启动报错。
+**验收**：✅ 已验证。对话行为不变（prompt 断言 7 项全过，收尾/重入话术改由 pack 驱动）；
+故意写坏 pack 得到可读报错；真实 `npm start` 全链路通过。
+
+**遗留**：`fields.json` 的 `type` 目前只是声明性元数据，`intent_confirmed` 标为 boolean
+但实际存的仍是模型写入的自由文本——归一化在 Phase 3.4 落地。
 
 ---
 

@@ -65,24 +65,18 @@ Pack 规范的权威定义见 `docs/architecture-v2.md` §4，本 skill 内的�
 用第二人称写（"你是……的报名助手"），包含：对话目标、需融入对话的问题清单、需观察判断的维度。
 正文不要包含字段清单和工具调用规则——那些由 core 运行时追加。
 
-### 4. v1 兼容桥（迁移完成前必做）
+### 4. 校验
 
-检查 `src/conversation.js` 是否仍从 `config/questions.json` 读配置（搜 `questions.json`）。
-如果是，把 pack 同步写入 `config/questions.json`（v1 运行时才能跑这场活动）：
+用加载器确认 pack 合法——它会一次性列出所有问题，每条指明文件和字段：
 
-| questions.json | 来源 |
-|---|---|
-| `opening` | flow.md frontmatter `opening` |
-| `required_fields` | fields.json 中 `required: true` 的 key |
-| `key_questions` | flow.md 正文的问题清单 |
-| `tone` | flow.md frontmatter `tone` |
-| `strictness` | flow.md frontmatter `strictness` |
-| `close_when_complete` | activity.json |
+```bash
+node -e "import('./src/activity.js').then(m=>{m.loadActivity('<slug>');console.log('OK')})"
+```
 
-同步后明确告知用户：哪些 pack 内容 v1 无法表达（自定义话术、可选字段、flow.md 正文的引导策略），
-迁移到 v2 运行时后才生效。若 `conversation.js` 已改为加载 pack，跳过本步。
+按报错逐条修，直到输出 OK。
 
 ### 5. 收尾
 
 - 打印生成的文件清单和内容摘要（字段表 + 开场白 + 关键开关）
+- 若 `activities/` 下已不止一个活动，提醒用户启动时要指定：`ACTIVITY=<slug> npm start`
 - 建议用户接下来用 test-activity skill 模拟一遍对话，检验引导效果
