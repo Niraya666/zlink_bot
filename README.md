@@ -101,7 +101,9 @@ data/
 2. 查 SQLite 获取用户历史 + 已采集画像
 3. 拼 system prompt（问题清单 + 已采集字段 + 缺失字段）
 4. 调 DeepSeek API（带 tool use）
-5. 模型决定记录哪些字段 (`save_profile_field`) 或结束对话 (`mark_complete`)
+5. 模型决定记录哪些字段 (`save_field`) 或结束对话 (`mark_complete`)；
+   `save_field` 只接受 `fields.json` 里的 key，布尔字段会归一化为 true/false，
+   不合法的调用会被拒绝并把可用字段清单回传给模型自纠
 6. 回复用户，保存消息到数据库
 
 ## 技术栈

@@ -236,6 +236,46 @@ function parseFlow(raw, errors) {
   };
 }
 
+const TRUTHY = [
+  "true", "yes", "y", "1",
+  "是", "对", "会", "能", "好", "确认", "确定", "参加", "会来", "能来", "可以",
+];
+const FALSY = [
+  "false", "no", "n", "0",
+  "否", "不", "不会", "不能", "不来", "不参加", "不确定", "没空", "去不了",
+];
+
+/**
+ * Coerce a model-supplied value to the field's declared type.
+ *
+ * Returns `{ ok: true, value }`, or `{ ok: false, reason }` when a boolean
+ * field got something we won't guess at — the caller hands `reason` back to the
+ * model as the tool result so it can retry, rather than silently storing prose
+ * in a field the dashboard will render as a yes/no.
+ */
+export function normalizeFieldValue(field, raw) {
+  const text = String(raw ?? "").trim();
+
+  if (field.type !== "boolean") {
+    if (!text) return { ok: false, reason: "值不能为空" };
+    return { ok: true, value: text };
+  }
+
+  const lowered = text.toLowerCase();
+
+  // Exact matches first — that's what the tool schema asks the model for.
+  if (TRUTHY.includes(lowered)) return { ok: true, value: "true" };
+  if (FALSY.includes(lowered)) return { ok: true, value: "false" };
+
+  // Then prefixes, negations first: "不会来" must not match on "会".
+  if (FALSY.some((t) => text.startsWith(t))) return { ok: true, value: "false" };
+  if (TRUTHY.some((t) => text.startsWith(t))) return { ok: true, value: "true" };
+  return {
+    ok: false,
+    reason: `字段 ${field.key} 是布尔值，只接受 true 或 false（收到的是「${text}」）。请判断用户的意思后重新调用。`,
+  };
+}
+
 function packError(slug, errors) {
   return new Error(
     `活动配置有误 — activities/${slug}/\n` +

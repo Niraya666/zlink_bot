@@ -14,10 +14,17 @@ description: 上线前模拟测试一场活动的对话流程。当用户想检�
 
 按运行时的方式拼出报名助手会拿到的完整 prompt：
 
-- 读取 pack 的 `flow.md`（frontmatter + 正文）和 `fields.json`
-- 按 `src/conversation.js` 的 `buildSystemPrompt` 逻辑拼装：flow.md 正文 + 必收字段清单 +
-  已收集/缺失状态 + 语气/严格程度 + 工具调用规则 + 开场白
-- 已收集字段从「暂无」开始
+最省事的办法是直接调渲染器拿到真实 prompt：
+
+```bash
+node -e "
+import('./src/activity.js').then(async a=>{
+  const p=await import('./src/prompt.js');
+  console.log(p.renderSystemPrompt(a.loadActivity('<slug>'), {}));
+})"
+```
+
+（`{}` 是已收集字段，测试从空开始。）
 
 ### 2. 角色扮演
 
@@ -27,6 +34,8 @@ description: 上线前模拟测试一场活动的对话流程。当用户想检�
 - 用户扮演参与者回复
 - 每轮回复后，用引用块标注本轮的「工具调用」：
   > 🔧 save_field(name, "张三")
+- 布尔字段必须记 `true` / `false`（不是原话）；用 `fields.json` 里没有的 key
+  会被运行时拒绝，模拟时也要照此判定
 - 遵守 prompt 的规则：每轮只问 1–2 个问题、语气一致、收齐后收尾
 
 用户随时可以说「暂停」跳出角色讨论问题，说「继续」回到扮演。

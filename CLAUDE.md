@@ -48,7 +48,8 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 ├── src/
 │   ├── activity.js          # pack 加载 + 校验 + 活动选择
 │   ├── ilink-client.js      # 长轮询、QR 登录、context_token 管理
-│   ├── conversation.js      # buildSystemPrompt + handleIncomingMessage
+│   ├── prompt.js            # system prompt 渲染（flow.md 正文 + 运行时段落）
+│   ├── conversation.js      # handleIncomingMessage + 工具调用校验
 │   ├── llm.js               # 封装 LLM API 调用 + tool 定义
 │   ├── db.js                # SQLite 初始化 + CRUD（按 event_id 作用域化）
 │   ├── server.js            # 网页控制台
@@ -80,19 +81,21 @@ Phase 4 会把 `src/` 重排为 `core/`（channel / engine / store / dashboard�
 
 ```
 handleIncomingMessage(msg):
-  1. getOrCreateUser(senderId)
-  2. saveContextToken(senderId, contextToken)
+  1. getOrCreateUser(senderId) + loadActivity()
+  2. 已 completed/dropped → 回 activity.reentryMessage 并结束
   3. saveMessage(user.id, "user", text)
-  4. getRecentMessages(20) + getProfileFields + loadQuestionConfig()
-  5. buildSystemPrompt(config, collected) → 组装 system prompt
-  6. callClaude(system, history, tools) → 调用 Claude
-  7. 处理 tool_calls：save_profile_field / mark_complete
-  8. saveMessage(user.id, "assistant", response.text)
-  9. sendMessage(senderId, response.text, contextToken)
+  4. getRecentMessages(20) + getProfileFields
+  5. close_when_complete 且必收字段已齐 → 回 completionMessage 并结束（不调 LLM）
+  6. renderSystemPrompt(activity, collected) + buildTools(activity)
+  7. callClaude(system, history, tools) → 工具循环（上限 5 轮）
+  8. applyToolCall 逐个校验并落库，把真实结果作为 tool_result 回传
+  9. saveMessage(user.id, "assistant", response.text) → 回复用户
 ```
 
-Claude 工具定义：
-- `save_profile_field(field, value)` — 记录收集到的画像字段
+工具定义（由 `buildTools(activity)` 按 pack 动态生成）：
+- `save_field(field, value)` — `field` 是 `fields.json` 的 key 枚举；
+  schema 外的 key 拒绝写入并回传可用清单，布尔字段归一化为 `true`/`false`，
+  歧义值拒绝并要求模型重判
 - `mark_complete()` — 标记对话完成
 
 ## 活动 Pack 配置

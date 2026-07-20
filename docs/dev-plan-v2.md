@@ -11,7 +11,7 @@
 | 0 | Claude Code skills（配置活动） | ✅ 已完成（7549e75） | 无 |
 | 1 | 数据层：event_id + schema 驱动 | ✅ 已完成 | 无 |
 | 2 | Activity pack：目录结构 + 加载校验 | ✅ 已完成 | Phase 1 |
-| 3 | Prompt 渲染：flow.md 接管对话策略 | ⬜ 未开始 | Phase 2 |
+| 3 | Prompt 渲染：flow.md 接管对话策略 | ✅ 已完成（**M1 达成**） | Phase 2 |
 | 4 | 目录重排 core/ + CLI | ⬜ 未开始 | Phase 3 |
 | 5 | 逃生舱：tools.js + views/ | ⬜ 未开始 | Phase 4 |
 
@@ -70,18 +70,22 @@
 
 **目标**：`buildSystemPrompt` 里的活动叙事移入 flow.md，core 只追加运行时段落。
 
-- [ ] 3.1 实现渲染器（`src/prompt.js`）：flow.md 正文原样作为 prompt 主体，
-      frontmatter（tone/strictness/opening）+ 运行时段落（已收集字段、缺失字段、工具规则）由 core 统一追加
-- [ ] 3.2 `conversation.js` 删除 `buildSystemPrompt` 的活动叙事部分，改调渲染器
-- [ ] 3.3 工具更名：`save_profile_field` → `save_field`（llm.js 工具定义 + conversation.js 分发处），
-      并按 `fields.json` 校验 key：schema 外的 key 拒绝写入，tool_result 回传可用字段清单让模型自纠
-- [ ] 3.4 boolean 类型字段值规范化（"是/对/确认" → "true"）——先做最简映射，复杂情况交给模型重试
-- [ ] 3.5 回归：用 `test-activity` skill 对 demo-day-2026 跑三种画风（配合/敷衍/跑题）的自动测试，
-      对比 v1 行为无退化；再用真实微信账号走一轮完整对话
+- [x] 3.1 渲染器 `src/prompt.js`：flow.md 正文原样作主体，字段 schema、已收集/缺失、
+      语气、工具规则由 core 统一追加（活动写不了这些，因此不会与执行逻辑脱节）
+- [x] 3.2 `conversation.js` 删除 `buildSystemPrompt`，改调 `renderSystemPrompt`
+- [x] 3.3 `save_profile_field` → `save_field`；工具定义改由 `buildTools(activity)` 动态生成，
+      `field` 带 key 枚举做第一道约束，`applyToolCall` 落库前二次校验，
+      未知 key 拒绝并把可用清单作为 tool_result 回传
+- [x] 3.4 `normalizeFieldValue`：boolean 归一化（精确匹配优先，否定前缀优先于肯定，
+      故「不会来」不会被「会」误判）；歧义值拒绝并要求模型重判；string 去空白、空值拒绝
+- [x] 3.5 回归：完整采集→自动收尾→重入全流程通过；boolean 正确归一化落库；
+      未知字段与歧义值均未污染数据库
 
-**验收**：flow.md 正文任意改写（换一种活动叙事）后，无需动 src/ 代码即可生效；schema 外字段被正确拒绝。
+**验收**：✅ 已验证。用一个叙事/字段/语气完全不同的活动（读书会）渲染 prompt，`src/` 零改动即生效；
+`close_when_complete: false` 时 mark_complete 规则正确消失；schema 外字段被拒绝。
 
-**风险**：DeepSeek 对 save_field 校验失败的自纠能力未知——若实测纠错率低，回退方案是宽松模式（记录但标记 unknown 字段）。
+**遗留**：真实 DeepSeek 的自纠率尚未在线上验证（本阶段用脚本化 LLM 覆盖了拒绝路径）。
+跑通首场真实活动后观察，若纠错率低再考虑宽松模式。
 
 ---
 
@@ -134,6 +138,7 @@
 
 ## 里程碑定义
 
-- **M1（Phase 1–3 完成）**：换活动 = 只写 pack 文件，src/ 零改动 —— 这是「可复用 core」成立的判据
+- **M1（Phase 1–3 完成）**：✅ **已达成**（2026-07-20）。换活动 = 只写 pack 文件，src/ 零改动
+  —— 已用读书会 pack（叙事/字段/语气/开关全不同）验证
 - **M2（Phase 4–5 完成）**：`zlink run` 一键起活动 + 逃生舱可用 —— 架构文档 §3 完全落地
 - M2 之后再评估：多活动路由、云端部署等（架构文档 §10 的不做清单到期重审）
