@@ -1,14 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
 import { TOOLS } from "./llm.js";
+import { loadActivityConfig } from "./config.js";
 
-const CONFIG_PATH = path.resolve("config/questions.json");
 const MAX_TOOL_ITERATIONS = 5;
-
-function loadQuestionConfig() {
-  const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-  return JSON.parse(raw);
-}
 
 export function buildSystemPrompt(config, collected) {
   const collectedStr =
@@ -70,7 +63,8 @@ export function createConversationHandler(db, callClaude) {
 
     const history = db.getRecentMessages(user.id, 20);
     const collected = db.getProfileFields(user.id);
-    const config = loadQuestionConfig();
+    // Reloaded per message so config edits take effect without a restart.
+    const config = loadActivityConfig();
 
     // If close_when_complete is on and all required fields are collected,
     // auto-close without calling Claude

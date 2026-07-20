@@ -9,7 +9,7 @@
 | Phase | 内容 | 状态 | 依赖 |
 |---|---|---|---|
 | 0 | Claude Code skills（配置活动） | ✅ 已完成（7549e75） | 无 |
-| 1 | 数据层：event_id + schema 驱动 | ⬜ 未开始 | 无 |
+| 1 | 数据层：event_id + schema 驱动 | ✅ 已完成 | 无 |
 | 2 | Activity pack：目录结构 + 加载校验 | ⬜ 未开始 | Phase 1 |
 | 3 | Prompt 渲染：flow.md 接管对话策略 | ⬜ 未开始 | Phase 2 |
 | 4 | 目录重排 core/ + CLI | ⬜ 未开始 | Phase 3 |
@@ -23,18 +23,22 @@
 
 **目标**：拔掉 `db.js` 里的活动硬编码，为多活动预埋数据模型。
 
-- [ ] 1.1 新建 `events` 表（`id`=slug, `name`, `created_at`），启动时 upsert 当前活动
-- [ ] 1.2 `users` 表加 `event_id` 列；唯一约束从 `wechat_uid` 全局唯一改为 `(event_id, wechat_uid)` 联合唯一
-      （SQLite 不支持直接改约束——建新表 + 复制 + 重命名，或直接删库重建，原型阶段选后者）
-- [ ] 1.3 `db.js` 所有查询按 `event_id` 作用域化（`getOrCreateUser` 签名带上 eventId）
-- [ ] 1.4 `getUserSummaries()` 去掉 SQL 里写死的 `MAX(CASE WHEN ...)` 三字段投影，
-      改为应用层组装：查全部 `profile_fields` 后按传入的字段清单拼对象
-- [ ] 1.5 `server.js` dashboard 用户表的列改为由字段清单动态生成（含表头 label）
-      —— 本阶段字段清单可临时来自 `config/questions.json` 的 `required_fields`
+- [x] 1.1 新建 `events` 表（`id`=slug, `name`, `created_at`），启动时 upsert 当前活动
+- [x] 1.2 `users` 表加 `event_id` 列；唯一约束改为 `(event_id, wechat_uid)` 联合唯一。
+      旧库不做迁移：检测到缺 `event_id` 即自动备份为 `bot.sqlite.bak-<时间戳>` 后重建（数据可恢复）
+- [x] 1.3 `db.js` 按 `event_id` 作用域化——`initDatabase({eventId, eventName})` 返回的接口
+      隐式绑定该活动，调用方不传 eventId，天然无法跨活动读写
+- [x] 1.4 `getUserSummaries()` 去掉写死的 `MAX(CASE WHEN ...)` 投影，改为应用层组装，
+      返回 `{wechat_uid, status, created_at, collected:{...}}`；SQL 中不再出现任何字段名
+- [x] 1.5 dashboard 列由字段清单注入渲染（`const FIELDS` 注入页面 + 表头用 label）
+- [x] 1.6（追加）抽出 `src/config.js` 统一加载配置，产出 `eventId/eventName/fields`——
+      Phase 2 activity loader 的前身；`conversation.js` 改用它，消除重复的 loader
 
-**验收**：改动 `questions.json` 里的 `required_fields`（增/删/改名），dashboard 列自动跟随，无需改代码。
+**验收**：✅ 已验证。改 `required_fields` + `field_labels`（改名/增/删），dashboard 列自动跟随，
+`src/` 零改动；跨活动同一 `wechat_uid` 互相隔离；真实 `npm start` 全链路通过。
 
-**注意**：`data/bot.sqlite` 直接删除重建（架构文档 §6 已定：原型阶段不写迁移脚本）。
+**本阶段字段清单临时来自 `config/questions.json`**（新增 `event_id`/`event_name`/`field_labels` 三个键，
+它们在 Phase 2 分别迁往 `activity.json` 的 slug/name 与 `fields.json` 的 label）。
 
 ---
 

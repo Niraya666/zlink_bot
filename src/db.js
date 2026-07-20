@@ -6,8 +6,54 @@ import fs from "node:fs";
 const DATA_DIR = path.resolve("data");
 const DB_PATH = path.join(DATA_DIR, "bot.sqlite");
 
-export function initDatabase() {
+/**
+ * A pre-v2 database has a `users` table without `event_id`. SQLite can't add
+ * the new (event_id, wechat_uid) uniqueness in place, and the prototype has no
+ * migration story (see docs/architecture-v2.md §6), so the old file is set
+ * aside and a fresh one is built. The backup keeps the old data recoverable.
+ */
+function isLegacySchema(dbPath) {
+  if (!fs.existsSync(dbPath)) return false;
+
+  const probe = new DatabaseSync(dbPath);
+  try {
+    const columns = probe.prepare("PRAGMA table_info(users)").all();
+    if (columns.length === 0) return false; // no users table yet — nothing stale
+    return !columns.some((c) => c.name === "event_id");
+  } finally {
+    probe.close();
+  }
+}
+
+function backupLegacyDatabase(dbPath) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupPath = `${dbPath}.bak-${stamp}`;
+
+  // Move the WAL sidecars too, or SQLite would replay them into the new db.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const source = dbPath + suffix;
+    if (fs.existsSync(source)) fs.renameSync(source, backupPath + suffix);
+  }
+  return backupPath;
+}
+
+/**
+ * Open the database, scoped to a single activity.
+ *
+ * Every returned method operates within `eventId` — callers never pass it, so
+ * one activity cannot read or write another's data.
+ */
+export function initDatabase({ eventId, eventName } = {}) {
+  if (!eventId) throw new Error("initDatabase 需要 eventId");
+
   fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  if (isLegacySchema(DB_PATH)) {
+    const backupPath = backupLegacyDatabase(DB_PATH);
+    console.log("⚠ 检测到 v1 数据库结构（缺少 event_id），已备份为：");
+    console.log(`  ${backupPath}`);
+    console.log("  将创建全新数据库。");
+  }
 
   // Uses Node's built-in SQLite (node:sqlite, available from Node 22.5+),
   // so there is no native module to compile. DatabaseSync's prepare/run/get/all
@@ -19,11 +65,19 @@ export function initDatabase() {
   db.exec("PRAGMA foreign_keys = ON");
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id            TEXT PRIMARY KEY,
-      wechat_uid    TEXT UNIQUE NOT NULL,
+      event_id      TEXT NOT NULL REFERENCES events(id),
+      wechat_uid    TEXT NOT NULL,
       status        TEXT NOT NULL DEFAULT 'bound',
-      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (event_id, wechat_uid)
     );
 
     CREATE TABLE IF NOT EXISTS messages (
@@ -42,6 +96,8 @@ export function initDatabase() {
       PRIMARY KEY (user_id, field)
     );
 
+    -- context_tokens belong to the WeChat session layer, not to an activity,
+    -- so they stay keyed by wechat_uid alone (docs/architecture-v2.md §6).
     CREATE TABLE IF NOT EXISTS context_tokens (
       wechat_uid    TEXT PRIMARY KEY,
       token         TEXT NOT NULL,
@@ -49,17 +105,23 @@ export function initDatabase() {
     );
   `);
 
+  db.prepare(
+    `INSERT INTO events (id, name) VALUES (?, ?)
+     ON CONFLICT (id) DO UPDATE SET name = excluded.name`,
+  ).run(eventId, eventName || eventId);
+
   return {
+    eventId,
+
     getOrCreateUser(wechatUid) {
       let user = db
-        .prepare("SELECT * FROM users WHERE wechat_uid = ?")
-        .get(wechatUid);
+        .prepare("SELECT * FROM users WHERE event_id = ? AND wechat_uid = ?")
+        .get(eventId, wechatUid);
       if (!user) {
         const id = randomUUID();
-        db.prepare("INSERT INTO users (id, wechat_uid) VALUES (?, ?)").run(
-          id,
-          wechatUid,
-        );
+        db.prepare(
+          "INSERT INTO users (id, event_id, wechat_uid) VALUES (?, ?, ?)",
+        ).run(id, eventId, wechatUid);
         user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
       }
       return user;
@@ -126,19 +188,45 @@ export function initDatabase() {
       return row?.token ?? null;
     },
 
+    /**
+     * All users of this activity, each with every profile field collected so far.
+     *
+     * Deliberately field-agnostic: no field name appears in the SQL, so adding
+     * or renaming a field never requires touching this query. Deciding which
+     * fields to display is the dashboard's job.
+     */
     getUserSummaries() {
-      return db
+      const users = db
         .prepare(
-          `SELECT u.wechat_uid, u.status, u.created_at,
-                  MAX(CASE WHEN pf.field = 'name' THEN pf.value END) as name,
-                  MAX(CASE WHEN pf.field = 'wechat_contact' THEN pf.value END) as wechat_contact,
-                  MAX(CASE WHEN pf.field = 'intent_confirmed' THEN pf.value END) as intent_confirmed
-           FROM users u
-           LEFT JOIN profile_fields pf ON pf.user_id = u.id
-           GROUP BY u.id
-           ORDER BY u.created_at DESC`,
+          `SELECT id, wechat_uid, status, created_at
+           FROM users WHERE event_id = ?
+           ORDER BY created_at DESC`,
         )
-        .all();
+        .all(eventId);
+
+      const rows = db
+        .prepare(
+          `SELECT pf.user_id, pf.field, pf.value
+           FROM profile_fields pf
+           JOIN users u ON u.id = pf.user_id
+           WHERE u.event_id = ?`,
+        )
+        .all(eventId);
+
+      const collectedByUser = new Map();
+      for (const row of rows) {
+        if (!collectedByUser.has(row.user_id)) {
+          collectedByUser.set(row.user_id, {});
+        }
+        collectedByUser.get(row.user_id)[row.field] = row.value;
+      }
+
+      return users.map((u) => ({
+        wechat_uid: u.wechat_uid,
+        status: u.status,
+        created_at: u.created_at,
+        collected: collectedByUser.get(u.id) || {},
+      }));
     },
   };
 }

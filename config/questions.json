@@ -1,6 +1,13 @@
 {
+  "event_id": "demo-day-2026",
+  "event_name": "Demo Day 2026",
   "opening": "嗨，我是活动小助手。花两分钟聊聊，我帮你确认一下参加资格～",
   "required_fields": ["name", "wechat_contact", "intent_confirmed"],
+  "field_labels": {
+    "name": "姓名",
+    "wechat_contact": "微信号",
+    "intent_confirmed": "意向"
+  },
   "key_questions": [
     "你是怎么知道这场活动的？",
     "你对活动主题（写你的价值观方向）怎么看？",

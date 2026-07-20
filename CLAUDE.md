@@ -4,7 +4,10 @@
 
 ## 当前状态
 
-纯设计阶段，尚未编写实现代码。设计文档见 `ilink-bot-mac-mini-prototype.md`。
+v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正在按 `docs/architecture-v2.md`
+重塑为「可复用 core + 活动 pack」结构，进度见 `docs/dev-plan-v2.md`（Phase 1 已完成）。
+
+设计文档：`ilink-bot-mac-mini-prototype.md`（v1 原始设计）、`docs/architecture-v2.md`（v2 架构）。
 
 ## 项目定位
 
@@ -51,12 +54,18 @@
 └── package.json
 ```
 
-## 数据模型（4 张表）
+## 数据模型（5 张表）
 
-- **users** (`id`, `wechat_uid`, `status`, `created_at`) — 隔离单位是 user_id；status: bound/completed/dropped
+- **events** (`id`, `name`, `created_at`) — `id` 即活动 slug；启动时 upsert 当前活动
+- **users** (`id`, `event_id`, `wechat_uid`, `status`, `created_at`) — `(event_id, wechat_uid)` 联合唯一，
+  即同一微信号在不同活动下是两个独立用户；status: bound/completed/dropped
 - **messages** (`id`, `user_id`, `role`, `content`, `created_at`) — user/assistant 消息记录
 - **profile_fields** (`user_id`, `field`, `value`, `updated_at`) — key-value 画像，动态扩展
-- **context_tokens** (`wechat_uid`, `token`, `updated_at`) — iLink 协议要求回复时带上
+- **context_tokens** (`wechat_uid`, `token`, `updated_at`) — iLink 协议要求回复时带上；
+  属微信会话层而非活动层，故不带 `event_id`
+
+`initDatabase({eventId, eventName})` 返回的接口已按活动作用域化，调用方不传 event_id。
+旧库（缺 `event_id`）会在启动时自动备份为 `bot.sqlite.bak-<时间戳>` 并重建。
 
 ## 对话处理流程
 
@@ -79,7 +88,9 @@ Claude 工具定义：
 
 ## 问题清单配置
 
-`config/questions.json` 结构：
+`config/questions.json` 结构（Phase 2 将迁移为 `activities/<slug>/` pack）：
+- `event_id` / `event_name` — 活动标识与名称（可被环境变量 `ACTIVITY` 覆盖）
+- `field_labels` — 字段展示名映射，驱动 dashboard 表头
 - `opening` — 开场白
 - `required_fields` — 必收字段（如 `["name", "wechat_contact", "intent_confirmed"]`）
 - `key_questions` — 需融入对话的问题列表

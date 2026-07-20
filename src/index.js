@@ -6,6 +6,7 @@ import { initDatabase } from "./db.js";
 import { callClaude } from "./llm.js";
 import { createConversationHandler } from "./conversation.js";
 import { startServer, state } from "./server.js";
+import { loadActivityConfig } from "./config.js";
 
 // Where the SDK persists login state (must match FileStorage's default dir).
 const STORAGE_DIR =
@@ -18,12 +19,21 @@ function hasSavedLogin() {
 async function main() {
   console.log("iLink Bot 原型启动中...");
 
-  // Initialize database
-  const db = initDatabase();
+  const activity = loadActivityConfig();
+  console.log(`活动：${activity.eventName}（${activity.eventId}）`);
+
+  // Initialize database — scoped to this activity
+  const db = initDatabase({
+    eventId: activity.eventId,
+    eventName: activity.eventName,
+  });
   console.log("✓ SQLite 数据库已就绪");
 
-  // Start web dashboard
-  const server = startServer(db);
+  // Start web dashboard — table columns follow the activity's field schema
+  const server = startServer(db, {
+    fields: activity.fields,
+    eventName: activity.eventName,
+  });
 
   // QR login callbacks wired to the web dashboard.
   // NOTE: @wechatbot/wechatbot ignores `loginCallbacks` passed to the

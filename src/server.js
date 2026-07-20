@@ -11,7 +11,15 @@ export const state = {
   errorMessage: null,
 };
 
-export function startServer(db) {
+/**
+ * @param db      activity-scoped database (see initDatabase)
+ * @param options.fields    field schema `[{ key, label }]` — drives table columns
+ * @param options.eventName activity name shown in the header
+ */
+export function startServer(db, options = {}) {
+  const fields = options.fields || [];
+  const eventName = options.eventName || "";
+
   const server = http.createServer(async (req, res) => {
     // CORS for local dev
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -20,7 +28,7 @@ export function startServer(db) {
       const url = new URL(req.url, `http://localhost:${PORT}`);
 
       if (url.pathname === "/") {
-        serveDashboard(res);
+        serveDashboard(res, { fields, eventName });
       } else if (url.pathname === "/api/status") {
         serveStatus(res);
       } else if (url.pathname === "/api/users") {
@@ -81,7 +89,7 @@ async function serveQrCode(url, res) {
   res.end(dataUrl);
 }
 
-function serveDashboard(res) {
+function serveDashboard(res, { fields, eventName }) {
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -131,7 +139,7 @@ function serveDashboard(res) {
 <body>
 <div class="container">
   <h1>iLink Bot 控制台</h1>
-  <p class="subtitle">活动报名 · 实时概览</p>
+  <p class="subtitle">${eventName ? eventName + " · " : ""}活动报名 · 实时概览</p>
 
   <div class="status-bar">
     <div class="status-dot" id="statusDot"></div>
@@ -155,6 +163,10 @@ function serveDashboard(res) {
 </div>
 
 <script>
+// Column schema, injected at serve time — the table follows the activity's
+// field list, so adding or renaming a field needs no code change here.
+const FIELDS = ${JSON.stringify(fields)};
+
 const STATUS_MAP = {
   starting:       { dot: "waiting", text: "正在启动..." },
   waiting_qr:     { dot: "waiting", text: "等待扫码绑定 — 请用微信扫描下方二维码" },
@@ -199,15 +211,16 @@ async function refresh() {
       document.getElementById("userTable").innerHTML =
         '<div class="empty-state"><div class="icon">📋</div>还没有用户数据，等待第一条消息...</div>';
     } else {
-      let html = '<table><thead><tr><th>微信 UID</th><th>姓名</th><th>微信号</th><th>意向</th><th>状态</th><th>创建时间</th></tr></thead><tbody>';
+      let html = '<table><thead><tr><th>微信 UID</th>' +
+        FIELDS.map(f => '<th>' + esc(f.label) + '</th>').join('') +
+        '<th>状态</th><th>创建时间</th></tr></thead><tbody>';
       for (const u of users) {
         const statusTag = u.status === "completed" ? "completed" : u.status === "dropped" ? "dropped" : "bound";
         const statusLabel = u.status === "completed" ? "已完成" : u.status === "dropped" ? "已放弃" : "对话中";
+        const collected = u.collected || {};
         html += '<tr>' +
           '<td>' + esc(u.wechat_uid) + '</td>' +
-          '<td>' + esc(u.name || "-") + '</td>' +
-          '<td>' + esc(u.wechat_contact || "-") + '</td>' +
-          '<td>' + esc(u.intent_confirmed || "-") + '</td>' +
+          FIELDS.map(f => '<td>' + esc(collected[f.key] || "-") + '</td>').join('') +
           '<td><span class="tag ' + statusTag + '">' + statusLabel + '</span></td>' +
           '<td>' + esc(u.created_at || "") + '</td>' +
           '</tr>';
