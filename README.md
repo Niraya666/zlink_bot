@@ -54,6 +54,22 @@ npm start
 
 首次运行会打印二维码链接，用微信扫码绑定机器人。之后任何人给这个微信号发消息，都会进入对话流程。
 
+### 重新扫码 / 重新绑定
+
+登录态会持久化到 `~/.wechatbot/`（SDK 的 `storage: "file"` 特性），所以**第二次
+`npm start` 会直接复用已保存的登录、不再显示二维码**——这是正常行为，不是 bug。
+
+以下情况需要重新扫码：登录已失效、想绑定另一个微信账号。运行：
+
+```bash
+npm run relogin   # 清除 ~/.wechatbot/ 下的登录态
+npm start         # 重新显示二维码
+```
+
+> 注意：会话中途失效时，SDK 会自动尝试重新登录，但新二维码只会打印在**终端**
+> （不会推送到网页控制台，这是 SDK 的已知限制）。控制台此时会提示「登录已失效」，
+> 按提示看终端扫码，或 `npm run relogin` 后重启即可。
+
 ## 项目结构
 
 ```
@@ -62,7 +78,8 @@ src/
 ├── ilink-client.js    # iLink SDK 封装（QR 登录、消息收发）
 ├── conversation.js    # 对话处理：拼 system prompt → 调 LLM → 处理 tool calls
 ├── llm.js             # DeepSeek API 封装（Anthropic 兼容模式）+ tool 定义
-└── db.js              # SQLite 初始化 + CRUD（node:sqlite）
+├── db.js              # SQLite 初始化 + CRUD（node:sqlite）
+└── relogin.js         # 清除已保存登录态（npm run relogin），强制重新扫码
 config/
 └── questions.json     # 问题清单配置
 data/

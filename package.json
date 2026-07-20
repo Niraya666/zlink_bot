@@ -5,7 +5,8 @@
   "description": "iLink Bot local prototype on Mac mini — WeChat bot with Claude-powered conversations",
   "type": "module",
   "scripts": {
-    "start": "node --env-file=.env src/index.js"
+    "start": "node --env-file=.env src/index.js",
+    "relogin": "node src/relogin.js"
   },
   "engines": {
     "node": ">=22.5.0"

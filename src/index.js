@@ -1,8 +1,19 @@
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { createBot } from "./ilink-client.js";
 import { initDatabase } from "./db.js";
 import { callClaude } from "./llm.js";
 import { createConversationHandler } from "./conversation.js";
 import { startServer, state } from "./server.js";
+
+// Where the SDK persists login state (must match FileStorage's default dir).
+const STORAGE_DIR =
+  process.env.WECHATBOT_STORAGE_DIR || path.join(os.homedir(), ".wechatbot");
+
+function hasSavedLogin() {
+  return fs.existsSync(path.join(STORAGE_DIR, "credentials.json"));
+}
 
 async function main() {
   console.log("iLink Bot 原型启动中...");
@@ -29,6 +40,16 @@ async function main() {
     },
   };
 
+  // If a login is already saved, the SDK skips the QR flow and reuses it —
+  // that's why no QR appears on the second run. Make that explicit so an empty
+  // QR section doesn't look like a bug, and point at the reset path.
+  if (hasSavedLogin()) {
+    console.log(
+      "检测到已保存的登录态，将跳过扫码直接复用。若需重新绑定（或登录已失效），",
+    );
+    console.log("请先运行 `npm run relogin` 清除登录态，再 `npm start`。");
+  }
+
   // Create WeChat bot
   const bot = createBot();
   const handleMessage = createConversationHandler(db, callClaude);
@@ -44,9 +65,14 @@ async function main() {
   });
 
   // Lifecycle events -> update dashboard state
+  // Session expiry: the SDK auto-retries login internally, but it re-logins
+  // WITHOUT forwarding our callbacks, so the new QR only reaches the terminal
+  // log — never state.qrUrl. Don't flip to "waiting_qr" (that would leave the
+  // dashboard on a blank QR box forever); use a dedicated state that tells the
+  // user where the QR actually is and how to force a clean rebind.
   bot.on("session:expired", () => {
-    console.log("⚠ 会话已过期，需要重新扫码登录");
-    state.botStatus = "waiting_qr";
+    console.log("⚠ 会话已失效，SDK 正在尝试自动重新登录（二维码见上方终端日志）");
+    state.botStatus = "session_expired";
     state.qrUrl = null;
   });
 

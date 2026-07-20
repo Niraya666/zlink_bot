@@ -5,7 +5,8 @@ const PORT = process.env.WEB_PORT || 3000;
 
 // Shared state — written by index.js, read by server
 export const state = {
-  botStatus: "starting", // "starting" | "waiting_qr" | "running" | "error"
+  // "starting" | "waiting_qr" | "running" | "session_expired" | "error"
+  botStatus: "starting",
   qrUrl: null,
   errorMessage: null,
 };
@@ -155,10 +156,11 @@ function serveDashboard(res) {
 
 <script>
 const STATUS_MAP = {
-  starting:  { dot: "waiting", text: "正在启动..." },
-  waiting_qr:{ dot: "waiting", text: "等待扫码绑定 — 请用微信扫描下方二维码" },
-  running:   { dot: "online",  text: "机器人已在线，正在接收消息" },
-  error:     { dot: "error",   text: "" },
+  starting:       { dot: "waiting", text: "正在启动..." },
+  waiting_qr:     { dot: "waiting", text: "等待扫码绑定 — 请用微信扫描下方二维码" },
+  running:        { dot: "online",  text: "机器人已在线，正在接收消息" },
+  session_expired:{ dot: "error",   text: "登录已失效 — 请查看终端二维码重新扫码，或运行 npm run relogin 后重启" },
+  error:          { dot: "error",   text: "" },
 };
 
 async function refresh() {
