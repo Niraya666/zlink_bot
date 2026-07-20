@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { ACTIVITIES_DIR } from "./paths.js";
 
-const ACTIVITIES_DIR = path.resolve("activities");
 const FIELD_KEY_RE = /^[a-z][a-z0-9_]*$/;
 const FIELD_TYPES = ["string", "boolean"];
 
@@ -12,7 +12,17 @@ const FIELD_TYPES = ["string", "boolean"];
  * packs and no ACTIVITY we refuse rather than guess — picking the wrong one
  * would write real signups into the wrong event.
  */
-export function resolveActivitySlug() {
+/** Slugs of every pack under activities/, sorted. */
+export function listActivitySlugs() {
+  if (!fs.existsSync(ACTIVITIES_DIR)) return [];
+  return fs
+    .readdirSync(ACTIVITIES_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+    .map((e) => e.name)
+    .sort();
+}
+
+export function resolveActivitySlug(requested = process.env.ACTIVITY) {
   if (!fs.existsSync(ACTIVITIES_DIR)) {
     throw new Error(
       `找不到 activities/ 目录（期望位置：${ACTIVITIES_DIR}）。\n` +
@@ -20,12 +30,7 @@ export function resolveActivitySlug() {
     );
   }
 
-  const slugs = fs
-    .readdirSync(ACTIVITIES_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-    .map((e) => e.name);
-
-  const requested = process.env.ACTIVITY;
+  const slugs = listActivitySlugs();
   if (requested) {
     if (!slugs.includes(requested)) {
       throw new Error(
@@ -43,8 +48,8 @@ export function resolveActivitySlug() {
   }
   if (slugs.length > 1) {
     throw new Error(
-      `activities/ 下有多个活动，请用环境变量指定要跑哪个：\n` +
-        slugs.map((s) => `  ACTIVITY=${s} npm start`).join("\n"),
+      `activities/ 下有多个活动，请指定要跑哪个：\n` +
+        slugs.map((s) => `  zlink run ${s}`).join("\n"),
     );
   }
   return slugs[0];
@@ -78,6 +83,8 @@ export function loadActivity(slug = resolveActivitySlug()) {
     dir,
     name: activityJson.name,
     startsAt: activityJson.starts_at ?? null,
+    // Per-activity port lets several activities run side by side.
+    webPort: activityJson.web_port ?? null,
     closeWhenComplete: activityJson.close_when_complete !== false,
     reentryMessage:
       activityJson.reentry_message ??
@@ -136,6 +143,14 @@ function validateActivityJson(json, slug, errors) {
   for (const key of ["reentry_message", "completion_message"]) {
     if (json[key] !== undefined && typeof json[key] !== "string") {
       errors.push(`activity.json: \`${key}\` 必须是字符串`);
+    }
+  }
+  if (json.web_port !== undefined) {
+    const port = json.web_port;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      errors.push(
+        `activity.json: \`web_port\` 必须是 1–65535 的整数（收到 ${JSON.stringify(port)}）`,
+      );
     }
   }
 }

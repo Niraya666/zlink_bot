@@ -67,16 +67,17 @@ Pack 规范的权威定义见 `docs/architecture-v2.md` §4，本 skill 内的�
 
 ### 4. 校验
 
-用加载器确认 pack 合法——它会一次性列出所有问题，每条指明文件和字段：
+用 CLI 确认 pack 合法——它会一次性列出所有问题，每条指明文件和字段：
 
 ```bash
-node -e "import('./src/activity.js').then(m=>{m.loadActivity('<slug>');console.log('OK')})"
+node cli.js list
 ```
 
-按报错逐条修，直到输出 OK。
+新活动那行显示 `✗ <slug> — 配置有误` 就按报错逐条修，直到变成 `● <slug>`。
 
 ### 5. 收尾
 
 - 打印生成的文件清单和内容摘要（字段表 + 开场白 + 关键开关）
-- 若 `activities/` 下已不止一个活动，提醒用户启动时要指定：`ACTIVITY=<slug> npm start`
+- 若 `activities/` 下已不止一个活动，提醒用户启动时要指定：`node cli.js run <slug>`，
+  并建议在 `activity.json` 里设不同的 `web_port`（默认 3000），以便多活动并行时不撞端口
 - 建议用户接下来用 test-activity skill 模拟一遍对话，检验引导效果

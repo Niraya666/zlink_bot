@@ -1,25 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
-import { createBot } from "./ilink-client.js";
-import { initDatabase } from "./db.js";
-import { callClaude } from "./llm.js";
-import { createConversationHandler } from "./conversation.js";
-import { startServer, state } from "./server.js";
-import { loadActivity } from "./activity.js";
+import { createBot } from "./channel/wechat.js";
+import { hasSavedLogin } from "./channel/session.js";
+import { initDatabase } from "./store/db.js";
+import { callClaude } from "./engine/llm.js";
+import { createConversationHandler } from "./engine/conversation.js";
+import { startServer, state } from "./dashboard/server.js";
 
-// Where the SDK persists login state (must match FileStorage's default dir).
-const STORAGE_DIR =
-  process.env.WECHATBOT_STORAGE_DIR || path.join(os.homedir(), ".wechatbot");
-
-function hasSavedLogin() {
-  return fs.existsSync(path.join(STORAGE_DIR, "credentials.json"));
-}
-
-async function main() {
-  console.log("iLink Bot 原型启动中...");
-
-  const activity = loadActivity();
+/**
+ * Run one activity: database + dashboard + WeChat bot, until interrupted.
+ *
+ * One process serves one activity on one WeChat account. Running several
+ * activities means several processes, each with its own `web_port`.
+ */
+export async function runActivity(activity) {
   console.log(`活动：${activity.name}（${activity.slug}）`);
 
   // Initialize database — scoped to this activity
@@ -33,6 +25,7 @@ async function main() {
   const server = startServer(db, {
     fields: activity.fields,
     eventName: activity.name,
+    port: activity.webPort,
   });
 
   // QR login callbacks wired to the web dashboard.
@@ -57,7 +50,7 @@ async function main() {
     console.log(
       "检测到已保存的登录态，将跳过扫码直接复用。若需重新绑定（或登录已失效），",
     );
-    console.log("请先运行 `npm run relogin` 清除登录态，再 `npm start`。");
+    console.log("请先运行 `zlink relogin` 清除登录态，再重新启动。");
   }
 
   // Create WeChat bot
@@ -121,10 +114,3 @@ async function main() {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 }
-
-// Pack loading / validation errors are user-facing config problems —
-// show the message, not a stack trace.
-main().catch((err) => {
-  console.error(`\n启动失败：\n${err.message}\n`);
-  process.exit(1);
-});

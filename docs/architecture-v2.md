@@ -106,6 +106,8 @@ zlink/
 - `close_when_complete` — 必收字段收齐后是否自动结束（v1 语义不变）
 - `reentry_message` / `completion_message` — v1 中硬编码在
   `conversation.js` 的话术，移入配置
+- `web_port`（可选）— 控制台端口，默认 3000；同时跑多场活动时靠它避开冲突
+- `starts_at`（可选）— 活动日期，目前仅作元信息
 
 ### 4.2 `fields.json` — 字段 schema（必需）
 

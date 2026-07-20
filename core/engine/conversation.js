@@ -1,5 +1,5 @@
-import { buildTools } from "./llm.js";
-import { loadActivity, normalizeFieldValue } from "./activity.js";
+import { buildTools } from "./tools.js";
+import { loadActivity, normalizeFieldValue } from "../activity.js";
 import { renderSystemPrompt } from "./prompt.js";
 
 const MAX_TOOL_ITERATIONS = 5;

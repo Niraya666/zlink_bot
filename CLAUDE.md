@@ -40,29 +40,36 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 ## 目录结构
 
 ```
+├── cli.js                   # 入口：run / list / export / relogin
 ├── activities/
 │   └── <slug>/              # 活动 pack（配置的唯一事实来源）
-│       ├── activity.json    # 元信息与开关
+│       ├── activity.json    # 元信息与开关（含可选 web_port）
 │       ├── fields.json      # 字段 schema
 │       └── flow.md          # 引导策略（frontmatter + prompt 正文）
-├── src/
+├── core/
 │   ├── activity.js          # pack 加载 + 校验 + 活动选择
-│   ├── ilink-client.js      # 长轮询、QR 登录、context_token 管理
-│   ├── prompt.js            # system prompt 渲染（flow.md 正文 + 运行时段落）
-│   ├── conversation.js      # handleIncomingMessage + 工具调用校验
-│   ├── llm.js               # 封装 LLM API 调用 + tool 定义
-│   ├── db.js                # SQLite 初始化 + CRUD（按 event_id 作用域化）
-│   ├── server.js            # 网页控制台
-│   ├── relogin.js           # 清除登录态，强制重新扫码
-│   └── index.js             # 启动入口：加载活动 → 登录 → 长轮询循环
+│   ├── paths.js             # 项目路径（从模块位置解析，不依赖 cwd）
+│   ├── run.js               # 编排：数据库 + 控制台 + 机器人
+│   ├── channel/
+│   │   ├── wechat.js        # 长轮询、QR 登录、context_token 管理
+│   │   └── session.js       # 已保存登录态的检测与清除
+│   ├── engine/
+│   │   ├── conversation.js  # handleIncomingMessage + 工具调用校验
+│   │   ├── prompt.js        # system prompt 渲染（flow.md 正文 + 运行时段落）
+│   │   ├── tools.js         # 工具定义（buildTools，按 pack 动态生成）
+│   │   └── llm.js           # 封装 LLM API 调用
+│   ├── store/
+│   │   └── db.js            # SQLite 初始化 + CRUD（按 event_id 作用域化）
+│   └── dashboard/
+│       └── server.js        # 网页控制台
 ├── data/
 │   └── bot.sqlite           # 本地数据库文件
 ├── .env                     # DEEPSEEK_API_KEY 等
 └── package.json
 ```
 
-Phase 4 会把 `src/` 重排为 `core/`（channel / engine / store / dashboard），
-详见 `docs/architecture-v2.md` §3。
+`core/` 内不含任何活动语义；活动特定的一切都在 `activities/<slug>/`。
+Phase 5 将补 pack 内的 `tools.js`（自定义工具）与 `views/`（自定义结果页）逃生舱。
 
 ## 数据模型（5 张表）
 
@@ -117,11 +124,16 @@ handleIncomingMessage(msg):
 
 ```bash
 npm install
-npm start                        # activities/ 下只有一个活动时
-ACTIVITY=<slug> npm start        # 有多个活动时指定
-npm run relogin                  # 清除登录态，强制重新扫码
+npm start                          # activities/ 下只有一个活动时
+node cli.js run <slug>             # 有多个活动时指定
+node cli.js list                   # 活动清单 + 报名统计
+node cli.js export <slug> --csv    # 导出报名数据
+node cli.js relogin                # 清除登录态，强制重新扫码
 # 首次运行打印二维码链接，扫码绑定
 ```
+
+`npm link` 后可直接用 `zlink <命令>`。活动选择优先级：命令行参数 > `ACTIVITY`
+环境变量 > 唯一 pack；多个 pack 且未指定时报错拒绝启动。
 
 ## 明确不做（当前阶段）
 

@@ -1,7 +1,7 @@
 import http from "node:http";
 import qrcode from "qrcode";
 
-const PORT = process.env.WEB_PORT || 3000;
+const DEFAULT_PORT = 3000;
 
 // Shared state — written by index.js, read by server
 export const state = {
@@ -15,10 +15,13 @@ export const state = {
  * @param db      activity-scoped database (see initDatabase)
  * @param options.fields    field schema `[{ key, label }]` — drives table columns
  * @param options.eventName activity name shown in the header
+ * @param options.port      overrides the default; WEB_PORT wins over both so a
+ *                          single run can be redirected without editing the pack
  */
 export function startServer(db, options = {}) {
   const fields = options.fields || [];
   const eventName = options.eventName || "";
+  const PORT = Number(process.env.WEB_PORT) || options.port || DEFAULT_PORT;
 
   const server = http.createServer(async (req, res) => {
     // CORS for local dev

@@ -18,8 +18,8 @@ description: 上线前模拟测试一场活动的对话流程。当用户想检�
 
 ```bash
 node -e "
-import('./src/activity.js').then(async a=>{
-  const p=await import('./src/prompt.js');
+import('./core/activity.js').then(async a=>{
+  const p=await import('./core/engine/prompt.js');
   console.log(p.renderSystemPrompt(a.loadActivity('<slug>'), {}));
 })"
 ```

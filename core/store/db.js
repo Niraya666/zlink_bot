@@ -1,10 +1,10 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import fs from "node:fs";
+import { DATA_DIR, DB_PATH } from "../paths.js";
 
-const DATA_DIR = path.resolve("data");
-const DB_PATH = path.join(DATA_DIR, "bot.sqlite");
+
+
 
 /**
  * A pre-v2 database has a `users` table without `event_id`. SQLite can't add

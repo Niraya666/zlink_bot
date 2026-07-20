@@ -12,7 +12,7 @@
 | 1 | 数据层：event_id + schema 驱动 | ✅ 已完成 | 无 |
 | 2 | Activity pack：目录结构 + 加载校验 | ✅ 已完成 | Phase 1 |
 | 3 | Prompt 渲染：flow.md 接管对话策略 | ✅ 已完成（**M1 达成**） | Phase 2 |
-| 4 | 目录重排 core/ + CLI | ⬜ 未开始 | Phase 3 |
+| 4 | 目录重排 core/ + CLI | ✅ 已完成 | Phase 3 |
 | 5 | 逃生舱：tools.js + views/ | ⬜ 未开始 | Phase 4 |
 
 每个 Phase 完成即提交（一个 Phase 一个或多个 commit），合并前用真实扫码流程回归一次。
@@ -93,21 +93,24 @@
 
 **目标**：物理结构对齐架构文档 §3，入口变为 CLI。
 
-- [ ] 4.1 目录迁移（`git mv` 保留历史）：
-      `src/ilink-client.js` → `core/channel/wechat.js`（**保留 loginCallbacks 只在 run()/login() 生效的注释，
-      以及 session_expired 不翻 waiting_qr 的处理**——两个已修过的坑不要在搬家时丢掉）
-      `src/conversation.js` + `src/prompt.js` → `core/engine/`
-      `src/llm.js` 工具部分 → `core/engine/tools.js`
-      `src/db.js` → `core/store/db.js`
-      `src/server.js` → `core/dashboard/server.js`
-      `src/activity.js` → `core/activity.js`
-- [ ] 4.2 `cli.js`：`run <activity>` / `list` / `export <activity>`（export 出 JSON + CSV 两种）
-- [ ] 4.3 `src/relogin.js` 并入 CLI：`zlink relogin`（保留 `npm run relogin` 别名）
-- [ ] 4.4 `package.json`：`bin` 字段注册 `zlink`；`npm start` 改为 `zlink run` 的别名
-- [ ] 4.5 dashboard 端口进 `activity.json`（可选字段 `web_port`，默认 3000），支持多进程并行跑多活动
-- [ ] 4.6 文档同步：README、CLAUDE.md 的目录结构 / 运行方式全部更新
+- [x] 4.1 目录迁移全部用 `git mv`，9 个文件的历史均保留（git 识别为 rename）。
+      两个已修过的坑在搬家中完整保留：loginCallbacks 只在 run()/login() 生效的注释、
+      session_expired 不翻 waiting_qr 的处理
+- [x] 4.2 `cli.js`：`run` / `list` / `export` / `relogin` / `help`；
+      `list` 对配置有误的 pack 优雅降级（打印错误后继续列其余活动）；
+      export 支持 JSON 与 CSV，CSV 正确转义逗号与内嵌引号
+- [x] 4.3 `relogin` 并入 CLI；`core/channel/session.js` 由脚本改为导出
+      `hasSavedLogin()` / `clearSavedLogin()`，无登录态时幂等提示
+- [x] 4.4 `package.json` 注册 `bin.zlink`；`npm start` 改为 `node cli.js run`
+- [x] 4.5 `web_port` 进 `activity.json`（校验 1–65535）；
+      优先级 `WEB_PORT` 环境变量 > `web_port` > 3000
+- [x] 4.6（追加）新增 `core/paths.js`：路径从模块位置解析而非 cwd，
+      CLI 从任意目录调用都能找到 activities/ 与 data/
+- [x] 4.7 文档同步：README、CLAUDE.md、架构文档 §4.1，以及三个 skill 里的路径与校验命令
 
-**验收**：`npx zlink run demo-day-2026` 完整跑通扫码登录 + 对话 + dashboard；`zlink export` 产出的 CSV 可用表格软件打开。
+**验收**：✅ 已验证。`npm start` 与 `node cli.js run <slug>` 均完整跑通（登录 + 控制台）；
+`web_port: 3100` 实测生效；CSV 转义正确；从 `/tmp` 调用 CLI 行为一致；
+多活动未指定时报错并给出可复制的命令。
 
 ---
 

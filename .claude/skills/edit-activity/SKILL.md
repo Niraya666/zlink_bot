@@ -22,11 +22,7 @@ description: 修改已有活动 pack 的配置。当用户想调整某场活动�
    - flow.md 正文的引导策略修改后，保持 frontmatter 与 activity.json 的一致性
      （`close_when_complete` 只在 activity.json，`opening`/`tone` 只在 flow.md，不要两处重复）
 
-4. **校验**：改完跑一次加载器，确认 pack 仍合法：
-
-   ```bash
-   node -e "import('./src/activity.js').then(m=>{m.loadActivity('<slug>');console.log('OK')})"
-   ```
+4. **校验**：改完跑一次 `node cli.js list`，确认该活动显示为 `● <slug>` 而非 `✗`。
 
 5. **收尾**：摘要展示改动前后差异；改动涉及引导策略时建议跑一次 test-activity。
 

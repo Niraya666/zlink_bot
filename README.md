@@ -50,14 +50,21 @@ skill 对话式完成，`test-activity` 可在上线前模拟一遍对话。
 ### 4. 运行
 
 ```bash
-npm start
+npm start                       # activities/ 下只有一个活动时
+node cli.js run demo-day-2026   # 有多个活动时指定
 ```
 
-`activities/` 下有多个活动时，需指定跑哪个：
+其他命令：
 
 ```bash
-ACTIVITY=demo-day-2026 npm start
+node cli.js list                          # 列出所有活动及报名统计
+node cli.js export demo-day-2026 --csv    # 导出报名数据（省略 --csv 则为 JSON）
+node cli.js relogin                       # 清除登录态，下次启动重新扫码
+node cli.js help
 ```
+
+`npm link` 之后可直接用 `zlink run` / `zlink list` / `zlink export` / `zlink relogin`。
+同时跑多场活动就开多个进程，在各自的 `activity.json` 里设 `web_port` 避免端口冲突。
 
 首次运行会打印二维码链接，用微信扫码绑定机器人。之后任何人给这个微信号发消息，都会进入对话流程。
 
@@ -80,19 +87,27 @@ npm start         # 重新显示二维码
 ## 项目结构
 
 ```
-src/
-├── index.js           # 入口：加载活动 → 登录 → 长轮询循环
-├── activity.js        # 活动 pack 加载与校验
-├── ilink-client.js    # iLink SDK 封装（QR 登录、消息收发）
-├── conversation.js    # 对话处理：拼 system prompt → 调 LLM → 处理 tool calls
-├── llm.js             # DeepSeek API 封装（Anthropic 兼容模式）+ tool 定义
-├── db.js              # SQLite 初始化 + CRUD（node:sqlite），按活动作用域化
-├── server.js          # 网页控制台（状态 / 二维码 / 报名列表）
-└── relogin.js         # 清除已保存登录态（npm run relogin），强制重新扫码
+cli.js                     # 入口：run / list / export / relogin
+core/
+├── activity.js            # 活动 pack 加载与校验
+├── paths.js               # 项目路径（不依赖 cwd，CLI 可从任意目录调用）
+├── run.js                 # 编排：数据库 + 控制台 + 机器人
+├── channel/
+│   ├── wechat.js          # iLink SDK 封装（QR 登录、消息收发）
+│   └── session.js         # 已保存登录态的检测与清除
+├── engine/
+│   ├── conversation.js    # 对话处理 + 工具调用校验
+│   ├── prompt.js          # system prompt 渲染
+│   ├── tools.js           # 工具定义（按 pack 动态生成）
+│   └── llm.js             # DeepSeek API 封装（Anthropic 兼容模式）
+├── store/
+│   └── db.js              # SQLite（node:sqlite），按活动作用域化
+└── dashboard/
+    └── server.js          # 网页控制台（状态 / 二维码 / 报名列表）
 activities/
-└── <slug>/            # 活动 pack：activity.json + fields.json + flow.md
+└── <slug>/                # 活动 pack：activity.json + fields.json + flow.md
 data/
-└── bot.sqlite         # 运行时自动创建
+└── bot.sqlite             # 运行时自动创建
 ```
 
 ## 对话流程
