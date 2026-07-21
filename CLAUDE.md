@@ -45,7 +45,9 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 │   └── <slug>/              # 活动 pack（配置的唯一事实来源）
 │       ├── activity.json    # 元信息与开关（含可选 web_port）
 │       ├── fields.json      # 字段 schema
-│       └── flow.md          # 引导策略（frontmatter + prompt 正文）
+│       ├── flow.md          # 引导策略（frontmatter + prompt 正文）
+│       ├── tools.js         # （可选）自定义工具逃生舱
+│       └── views/summary.html # （可选）自定义结果页逃生舱
 ├── core/
 │   ├── activity.js          # pack 加载 + 校验 + 活动选择
 │   ├── paths.js             # 项目路径（从模块位置解析，不依赖 cwd）
@@ -69,7 +71,9 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 ```
 
 `core/` 内不含任何活动语义；活动特定的一切都在 `activities/<slug>/`。
-Phase 5 将补 pack 内的 `tools.js`（自定义工具）与 `views/`（自定义结果页）逃生舱。
+可选逃生舱：pack 内 `tools.js`（自定义工具，启动时校验并加载，ctx=`{db,user,activity}`，
+handler 抛错被隔离）与 `views/summary.html`（自定义结果页，整页替换 `/`，
+core 注入 `window.__ZLINK__={eventName,fields}`）。示例见 `activities/example-with-tools/`。
 
 ## 数据模型（5 张表）
 

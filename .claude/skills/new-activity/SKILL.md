@@ -65,6 +65,21 @@ Pack 规范的权威定义见 `docs/architecture-v2.md` §4，本 skill 内的�
 用第二人称写（"你是……的报名助手"），包含：对话目标、需融入对话的问题清单、需观察判断的维度。
 正文不要包含字段清单和工具调用规则——那些由 core 运行时追加。
 
+### 3b. 逃生舱（可选，多数活动用不到）
+
+在访谈里加一问：**这场活动需不需要配置覆盖不了的东西**？两种逃生舱，需要才生成：
+
+- **自定义工具** `tools.js` —— 当引导过程中需要执行代码（查实时余额/名额、发定制内容、
+  调外部接口）时。参照 `activities/example-with-tools/tools.js`：
+  `export const tools = [{ name, description, input_schema, handler(input, ctx) }]`，
+  `ctx = { db, user, activity }`（db 已按本活动作用域化）。工具名不能是 `save_field` /
+  `mark_complete`，且要在 flow.md 正文里明确告诉助手何时调用它。
+- **自定义结果页** `views/summary.html` —— 当默认 dashboard 的表格满足不了展示需求时。
+  存在即整页替换 `/`；core 会注入 `window.__ZLINK__ = { eventName, fields }`，
+  `/api/users`、`/api/status`、`/api/qrcode` 端点照常可用。参照 `example-with-tools/views/summary.html`。
+
+不确定要不要用时，默认不用——声明式配置能覆盖绝大多数活动。
+
 ### 4. 校验
 
 用 CLI 确认 pack 合法——它会一次性列出所有问题，每条指明文件和字段：
@@ -74,6 +89,7 @@ node cli.js list
 ```
 
 新活动那行显示 `✗ <slug> — 配置有误` 就按报错逐条修，直到变成 `● <slug>`。
+（`list` 只校验三件套；若加了 `tools.js`，它的错误在 `node cli.js run <slug>` 启动时才报出。）
 
 ### 5. 收尾
 

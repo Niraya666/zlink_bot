@@ -47,6 +47,13 @@ activities/demo-day-2026/
 创建和修改活动不用手写文件——在 Claude Code 里用 `new-activity` / `edit-activity`
 skill 对话式完成，`test-activity` 可在上线前模拟一遍对话。
 
+配置覆盖不了的少数情况，pack 还有两个可选逃生舱（见 `activities/example-with-tools/`）：
+
+- `tools.js` — 自定义工具，供模型在对话中调用（查实时名额、发定制内容等）。
+  协议 `{ name, description, input_schema, handler(input, ctx) }`，`ctx = { db, user, activity }`
+- `views/summary.html` — 自定义结果页，存在即整页替换控制台；core 注入
+  `window.__ZLINK__ = { eventName, fields }`，`/api/*` 端点照常可用
+
 ### 4. 运行
 
 ```bash
@@ -105,7 +112,12 @@ core/
 └── dashboard/
     └── server.js          # 网页控制台（状态 / 二维码 / 报名列表）
 activities/
-└── <slug>/                # 活动 pack：activity.json + fields.json + flow.md
+└── <slug>/                # 活动 pack
+    ├── activity.json      # 元信息与开关（含可选 web_port）
+    ├── fields.json        # 字段 schema
+    ├── flow.md            # 引导策略
+    ├── tools.js           # （可选）自定义工具
+    └── views/summary.html # （可选）自定义结果页
 data/
 └── bot.sqlite             # 运行时自动创建
 ```

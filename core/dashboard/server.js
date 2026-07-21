@@ -1,4 +1,5 @@
 import http from "node:http";
+import fs from "node:fs";
 import qrcode from "qrcode";
 
 const DEFAULT_PORT = 3000;
@@ -17,10 +18,13 @@ export const state = {
  * @param options.eventName activity name shown in the header
  * @param options.port      overrides the default; WEB_PORT wins over both so a
  *                          single run can be redirected without editing the pack
+ * @param options.summaryViewPath  pack's views/summary.html — replaces the
+ *                          default page at "/" when present (Phase 5 escape hatch)
  */
 export function startServer(db, options = {}) {
   const fields = options.fields || [];
   const eventName = options.eventName || "";
+  const summaryViewPath = options.summaryViewPath || null;
   const PORT = Number(process.env.WEB_PORT) || options.port || DEFAULT_PORT;
 
   const server = http.createServer(async (req, res) => {
@@ -31,7 +35,11 @@ export function startServer(db, options = {}) {
       const url = new URL(req.url, `http://localhost:${PORT}`);
 
       if (url.pathname === "/") {
-        serveDashboard(res, { fields, eventName });
+        if (summaryViewPath) {
+          serveCustomView(res, summaryViewPath, { fields, eventName });
+        } else {
+          serveDashboard(res, { fields, eventName });
+        }
       } else if (url.pathname === "/api/status") {
         serveStatus(res);
       } else if (url.pathname === "/api/users") {
@@ -90,6 +98,36 @@ async function serveQrCode(url, res) {
 
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end(dataUrl);
+}
+
+/**
+ * Serve a pack's custom summary page in place of the default dashboard.
+ *
+ * The page fully owns its UI; core only injects `window.__ZLINK__` (activity
+ * name + field schema) before anything else runs, and leaves the /api/*
+ * endpoints available for the page to fetch live data / status / QR from.
+ */
+function serveCustomView(res, viewPath, { fields, eventName }) {
+  let html;
+  try {
+    html = fs.readFileSync(viewPath, "utf-8");
+  } catch (err) {
+    res.writeHead(500);
+    res.end(`无法读取自定义页面：${err.message}`);
+    return;
+  }
+
+  const bootstrap =
+    `<script>window.__ZLINK__=${JSON.stringify({ eventName, fields })};</script>`;
+
+  // Inject before any author script runs: right after <head>, else prepend.
+  const headOpen = html.match(/<head[^>]*>/i);
+  const injected = headOpen
+    ? html.replace(headOpen[0], headOpen[0] + bootstrap)
+    : bootstrap + html;
+
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(injected);
 }
 
 function serveDashboard(res, { fields, eventName }) {

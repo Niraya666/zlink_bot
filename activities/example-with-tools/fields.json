@@ -1,0 +1,7 @@
+{
+  "fields": [
+    { "key": "name", "label": "姓名", "type": "string", "required": true },
+    { "key": "wechat_contact", "label": "微信号", "type": "string", "required": true },
+    { "key": "seat_confirmed", "label": "确认占位", "type": "boolean", "required": true }
+  ]
+}

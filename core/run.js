@@ -3,6 +3,7 @@ import { hasSavedLogin } from "./channel/session.js";
 import { initDatabase } from "./store/db.js";
 import { callClaude } from "./engine/llm.js";
 import { createConversationHandler } from "./engine/conversation.js";
+import { loadCustomTools } from "./engine/custom-tools.js";
 import { startServer, state } from "./dashboard/server.js";
 
 /**
@@ -21,11 +22,23 @@ export async function runActivity(activity) {
   });
   console.log("✓ SQLite 数据库已就绪");
 
+  // Load the pack's optional custom tools once (code, not per-message config).
+  // A malformed tools.js throws here and aborts startup with a clear message.
+  const customTools = await loadCustomTools(activity);
+  if (customTools.length > 0) {
+    console.log(
+      `✓ 已加载 ${customTools.length} 个自定义工具：${customTools
+        .map((t) => t.definition.name)
+        .join("、")}`,
+    );
+  }
+
   // Start web dashboard — table columns follow the activity's field schema
   const server = startServer(db, {
     fields: activity.fields,
     eventName: activity.name,
     port: activity.webPort,
+    summaryViewPath: activity.summaryViewPath,
   });
 
   // QR login callbacks wired to the web dashboard.
@@ -55,7 +68,10 @@ export async function runActivity(activity) {
 
   // Create WeChat bot
   const bot = createBot();
-  const handleMessage = createConversationHandler(db, callClaude);
+  const handleMessage = createConversationHandler(db, callClaude, {
+    slug: activity.slug,
+    customTools,
+  });
 
   // Register message handler
   bot.onMessage(async (msg) => {

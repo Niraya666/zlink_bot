@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>示例工作坊 · 报名概览</title>
+<!--
+  自定义结果页示例（Phase 5 逃生舱）。
+  - core 会在 <head> 之后注入 window.__ZLINK__ = { eventName, fields }
+  - /api/users、/api/status、/api/qrcode 端点依然可用，直接 fetch 即可
+  - 这个页面完全接管 "/"，UI 全部由自己负责
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 40px 20px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #8b949e; font-size: 13px; margin-bottom: 28px; }
+  .capacity { display: flex; align-items: baseline; gap: 8px; margin-bottom: 20px; }
+  .capacity .n { font-size: 40px; font-weight: 700; color: #2ea043; }
+  .capacity .t { color: #8b949e; font-size: 14px; }
+  .bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin-bottom: 32px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg,#2ea043,#3fb950); transition: width .4s; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .card .who { font-size: 15px; font-weight: 600; }
+  .card .meta { color: #8b949e; font-size: 12px; margin-top: 2px; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 12px; }
+  .pill.done { background: #2ea04322; color: #3fb950; }
+  .pill.wip { background: #388bfd22; color: #58a6ff; }
+  .empty { text-align: center; color: #6e7681; padding: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">工作坊报名</h1>
+  <p class="sub">自定义结果页 · 每 5 秒刷新</p>
+
+  <div class="capacity">
+    <span class="n" id="left">–</span>
+    <span class="t" id="capText">名额剩余</span>
+  </div>
+  <div class="bar"><div id="barFill" style="width:0%"></div></div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+  const CAPACITY = 20;
+  const cfg = window.__ZLINK__ || { eventName: "", fields: [] };
+  document.getElementById("title").textContent = cfg.eventName || "工作坊报名";
+
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  async function refresh(){
+    let users = [];
+    try { users = await (await fetch("/api/users")).json(); } catch { return; }
+
+    const done = users.filter(u => u.status === "completed").length;
+    const left = Math.max(0, CAPACITY - done);
+    document.getElementById("left").textContent = left;
+    document.getElementById("capText").textContent =
+      left > 0 ? "名额剩余（共 " + CAPACITY + "）" : "名额已满，进入候补";
+    document.getElementById("barFill").style.width = (done / CAPACITY * 100) + "%";
+
+    const nameKey = (cfg.fields[0] && cfg.fields[0].key) || "name";
+    const list = document.getElementById("list");
+    if (users.length === 0){
+      list.innerHTML = '<div class="empty">还没有人报名</div>';
+      return;
+    }
+    list.innerHTML = users.map(u => {
+      const c = u.collected || {};
+      const done = u.status === "completed";
+      return '<div class="card"><div>'
+        + '<div class="who">' + esc(c[nameKey] || u.wechat_uid) + '</div>'
+        + '<div class="meta">' + esc(c.wechat_contact || "微信号待补") + '</div>'
+        + '</div><span class="pill ' + (done?"done":"wip") + '">'
+        + (done ? "已占位" : "对话中") + '</span></div>';
+    }).join("");
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>

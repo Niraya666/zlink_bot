@@ -199,15 +199,17 @@ export const tools = [
 ];
 ```
 
-core 动态 import，与内置工具合并后传给 LLM；`handler` 返回值作为
-tool_result 回传。内置工具名（`save_field` / `mark_complete`）保留，
-pack 不可覆盖。
+core 在启动时（`loadCustomTools`）一次性 import 并校验，与内置工具合并后传给
+LLM；`handler` 返回值（转字符串）作为 tool_result 回传。内置工具名
+（`save_field` / `mark_complete`）保留，pack 不可覆盖——重名/坏结构在启动即报错。
+handler 抛错被隔离：错误文本作为 tool_result 回传，对话循环不中断。
 
 ### 4.5 `views/` — dashboard 差异化页面（可选）
 
-默认 dashboard 由 schema 生成即可用。需要定制结果页时，pack 提供模板
-（如 `views/summary.html`），core 检测到即替换默认页面，模板内可访问
-schema 化的用户数据。首期只支持整页替换，不做模板语言。
+默认 dashboard 由 schema 生成即可用。需要定制结果页时，pack 提供
+`views/summary.html`，core 检测到即整页替换 `/`：在 `<head>` 后注入
+`window.__ZLINK__ = { eventName, fields }`，页面自行渲染，`/api/*` 端点照常可用。
+页面完全接管 UI（含 QR 引导），只支持整页替换，不做模板语言。
 
 ## 5. Core 契约
 
@@ -217,8 +219,8 @@ core 对 pack 暴露的稳定接口（pack 只依赖这些，不 import core 内
 |---|---|
 | Pack 加载 | 目录结构 + 三个必需文件的 JSON/frontmatter schema |
 | 工具协议 | `{ name, description, input_schema, handler(input, ctx) }` |
-| handler ctx | `{ db, user, activity }`——db 为按 `event_id` 作用域化的只读+字段写入接口 |
-| 视图数据 | `{ activity, fields, users: [{ status, collected: {...} }] }` |
+| handler ctx | `{ db, user, activity }`——db 为按 `event_id` 作用域化的接口 |
+| 视图注入 | `window.__ZLINK__ = { eventName, fields }`；数据经 `/api/users` 拉取 |
 
 内置工具从 v1 的 `save_profile_field` 更名为 `save_field`（参数
 `field, value` 不变），并增加 schema 校验；`mark_complete` 语义不变。

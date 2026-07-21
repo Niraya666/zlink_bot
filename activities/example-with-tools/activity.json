@@ -1,0 +1,8 @@
+{
+  "name": "示例工作坊（自定义工具演示）",
+  "slug": "example-with-tools",
+  "web_port": 3200,
+  "close_when_complete": true,
+  "reentry_message": "你已经报过名啦，工作坊当天见～",
+  "completion_message": "报名成功！名额已为你保留，到时见。"
+}

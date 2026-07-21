@@ -95,7 +95,16 @@ export function loadActivity(slug = resolveActivitySlug()) {
     fields,
     requiredFields: fields.filter((f) => f.required).map((f) => f.key),
     flow,
+    // Optional escape hatches (Phase 5). Presence is recorded here; loading and
+    // validating tools.js is async and happens in core/engine/custom-tools.js.
+    toolsPath: optionalFile(dir, "tools.js"),
+    summaryViewPath: optionalFile(dir, path.join("views", "summary.html")),
   };
+}
+
+function optionalFile(dir, rel) {
+  const full = path.join(dir, rel);
+  return fs.existsSync(full) ? full : null;
 }
 
 // ── file readers ─────────────────────────────────────────────────────

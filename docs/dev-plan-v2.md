@@ -13,7 +13,7 @@
 | 2 | Activity pack：目录结构 + 加载校验 | ✅ 已完成 | Phase 1 |
 | 3 | Prompt 渲染：flow.md 接管对话策略 | ✅ 已完成（**M1 达成**） | Phase 2 |
 | 4 | 目录重排 core/ + CLI | ✅ 已完成 | Phase 3 |
-| 5 | 逃生舱：tools.js + views/ | ⬜ 未开始 | Phase 4 |
+| 5 | 逃生舱：tools.js + views/ | ✅ 已完成（**M2 达成**） | Phase 4 |
 
 每个 Phase 完成即提交（一个 Phase 一个或多个 commit），合并前用真实扫码流程回归一次。
 
@@ -118,16 +118,22 @@
 
 **目标**：给「配置覆盖不了的 20%」留出口。
 
-- [ ] 5.1 pack 内 `tools.js` 动态 import；工具协议 `{ name, description, input_schema, handler(input, ctx) }`，
-      ctx = `{ db, user, activity }`（db 为按 event_id 作用域化的受限接口）
-- [ ] 5.2 名字冲突保护：pack 工具不得覆盖内置 `save_field` / `mark_complete`，冲突即启动报错
-- [ ] 5.3 handler 异常隔离：单个工具抛错 → tool_result 返回错误文本，不中断对话循环
-- [ ] 5.4 `views/summary.html` 整页替换机制：存在即替代默认 dashboard 用户列表页，
-      注入数据 `{ activity, fields, users }`
-- [ ] 5.5 做一个示例活动（`activities/example-with-tools/`）演示自定义工具 + 自定义结果页，作为活文档
-- [ ] 5.6 skills 更新：`new-activity` 访谈中加一问「是否需要自定义工具/页面」，需要则生成骨架
+- [x] 5.1 `core/engine/custom-tools.js`：启动时一次性 import pack 的 `tools.js`
+      （代码而非 config，不逐消息重载）；协议 `{ name, description, input_schema, handler(input, ctx) }`，
+      ctx = `{ db, user, activity }`（db 已按 event_id 作用域化）
+- [x] 5.2 名字冲突保护：不得覆盖 `save_field` / `mark_complete`，重名/坏结构一次性列出并启动报错
+- [x] 5.3 handler 异常隔离：抛错 → 错误文本作为 tool_result 回传，对话循环不中断
+- [x] 5.4 `views/summary.html` 整页替换 `/`：在 `<head>` 后注入
+      `window.__ZLINK__ = { eventName, fields }`，`/api/*` 端点照常可用
+- [x] 5.5 示例活动 `activities/example-with-tools/`：`check_seat_availability` 自定义工具
+      + 名额概览自定义结果页，作为活文档
+- [x] 5.6 `new-activity` skill 加「§3b 逃生舱」一问，需要才生成骨架，指向示例活动
+- [x] 5.7（追加）修掉 latent bug：对话处理器逐消息重载改为按 slug 重载，
+      不再 `resolveActivitySlug()`——否则一旦有第 2 个活动，运行中的机器人每条消息都会报歧义
 
-**验收**：示例活动的自定义工具在真实对话中被模型正确调用；自定义结果页正常渲染。
+**验收**：✅ 已验证。自定义工具端到端被模型调用并回传结果；handler 抛错被隔离对话继续；
+自定义结果页浏览器实测渲染（名额从 `/api/users` 实时计算、卡片列表、状态徽章）；
+冲突/坏结构启动报错。
 
 ---
 
@@ -143,5 +149,6 @@
 
 - **M1（Phase 1–3 完成）**：✅ **已达成**（2026-07-20）。换活动 = 只写 pack 文件，src/ 零改动
   —— 已用读书会 pack（叙事/字段/语气/开关全不同）验证
-- **M2（Phase 4–5 完成）**：`zlink run` 一键起活动 + 逃生舱可用 —— 架构文档 §3 完全落地
+- **M2（Phase 4–5 完成）**：✅ **已达成**（2026-07-21）。`zlink run` 一键起活动 + 逃生舱可用
+  —— 架构文档 §3 完全落地
 - M2 之后再评估：多活动路由、云端部署等（架构文档 §10 的不做清单到期重审）

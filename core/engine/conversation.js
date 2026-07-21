@@ -8,36 +8,63 @@ const MAX_TOOL_ITERATIONS = 5;
  * Apply one tool call and return the text handed back to the model as its
  * tool_result. Rejections are phrased so the model can fix them and retry —
  * a wrong field name is answered with the list of valid ones.
+ *
+ * @param customTools Map<name, handler> — an activity's tools.js handlers.
  */
-function applyToolCall(call, { db, user, activity }) {
+async function applyToolCall(call, ctx, customTools) {
+  const { db, user, activity } = ctx;
+
   if (call.name === "mark_complete") {
     db.updateUserStatus(user.id, "completed");
     return { completed: true, result: "对话已标记为完成" };
   }
 
-  if (call.name !== "save_field") {
-    return { result: `未知工具 ${call.name}` };
+  if (call.name === "save_field") {
+    const key = call.input?.field;
+    const field = activity.fields.find((f) => f.key === key);
+    if (!field) {
+      const valid = activity.fields.map((f) => f.key).join("、");
+      return { result: `没有名为「${key}」的字段，未记录。可用字段：${valid}` };
+    }
+
+    const normalized = normalizeFieldValue(field, call.input?.value);
+    if (!normalized.ok) {
+      return { result: `未记录：${normalized.reason}` };
+    }
+
+    db.saveProfileField(user.id, field.key, normalized.value);
+    return { result: `已记录 ${field.key}: ${normalized.value}` };
   }
 
-  const key = call.input?.field;
-  const field = activity.fields.find((f) => f.key === key);
-  if (!field) {
-    const valid = activity.fields.map((f) => f.key).join("、");
-    return {
-      result: `没有名为「${key}」的字段，未记录。可用字段：${valid}`,
-    };
+  // Custom tool from the pack's tools.js. A handler throwing must not kill the
+  // conversation — the error goes back as the tool_result so the model can
+  // react, and the loop continues.
+  const handler = customTools.get(call.name);
+  if (handler) {
+    try {
+      const result = await handler(call.input ?? {}, ctx);
+      return { result: result == null ? "（无返回）" : String(result) };
+    } catch (err) {
+      console.error(`自定义工具 ${call.name} 执行失败:`, err.message);
+      return { result: `工具 ${call.name} 执行出错：${err.message}` };
+    }
   }
 
-  const normalized = normalizeFieldValue(field, call.input?.value);
-  if (!normalized.ok) {
-    return { result: `未记录：${normalized.reason}` };
-  }
-
-  db.saveProfileField(user.id, field.key, normalized.value);
-  return { result: `已记录 ${field.key}: ${normalized.value}` };
+  return { result: `未知工具 ${call.name}` };
 }
 
-export function createConversationHandler(db, callClaude) {
+/**
+ * @param options.slug        which pack to reload each message. Required so a
+ *                             multi-activity checkout reloads THIS activity
+ *                             rather than re-resolving (which would be ambiguous).
+ * @param options.customTools  loaded once at startup by loadCustomTools().
+ */
+export function createConversationHandler(db, callClaude, options = {}) {
+  const { slug, customTools = [] } = options;
+  // name -> handler, and static definitions merged into every request.
+  const handlerByName = new Map(customTools.map((t) => [t.definition.name, t.handler]));
+  const customDefs = customTools.map((t) => t.definition);
+
   return async function handleMessage(msg, replyFn) {
     const wechatUid = msg.userId;
     const text = msg.text;
@@ -45,7 +72,8 @@ export function createConversationHandler(db, callClaude) {
     const user = db.getOrCreateUser(wechatUid);
 
     // Reloaded per message so pack edits take effect without a restart.
-    const activity = loadActivity();
+    // Reload the SAME slug — don't re-resolve (ambiguous with 2+ activities).
+    const activity = loadActivity(slug);
 
     // Skip if user already completed or dropped
     if (user.status === "completed" || user.status === "dropped") {
@@ -71,7 +99,7 @@ export function createConversationHandler(db, callClaude) {
     }
 
     const systemPrompt = renderSystemPrompt(activity, collected);
-    const tools = buildTools(activity);
+    const tools = [...buildTools(activity), ...customDefs];
 
     let responseText;
     try {
@@ -92,10 +120,14 @@ export function createConversationHandler(db, callClaude) {
 
         // Apply each call and keep its outcome — the model is told what
         // actually happened, including rejections, so it can correct itself.
-        const outcomes = response.toolCalls.map((call) => ({
-          call,
-          ...applyToolCall(call, { db, user, activity }),
-        }));
+        const ctx = { db, user, activity };
+        const outcomes = [];
+        for (const call of response.toolCalls) {
+          outcomes.push({
+            call,
+            ...(await applyToolCall(call, ctx, handlerByName)),
+          });
+        }
 
         if (response.stopReason === "end_turn") {
           responseText = response.text;
