@@ -137,9 +137,22 @@
 
 ---
 
+## ⚠ 阻塞项：v2 的「一个 bot 服务多人」前提不成立
+
+调研发现 iLink 的接入模型是**每个参与者各自扫码建立独立绑定**，不存在一个可加好友的
+「机器人微信号」——v2 全部 Phase 的这个共同前提是错的。详见
+`docs/multi-binding-findings.md`。
+
+已验证：并发签发 ✅、会话互不干扰 ✅、SDK 凭证隔离 ✅、二维码有效期 120 秒。
+待验证（需第二个微信号）：**两个绑定确认后能否同时正常收发消息**。
+
+好在改动集中在 channel 层，engine / store / activity pack 机制可复用。
+**在待验证项出结果前，不要动 v3 架构代码。**
+
 ## 持续事项（不属于任何 Phase）
 
 - [ ] 每个 Phase 合并前：真实扫码 + 真实对话回归一次（`npm run relogin` 换新会话测首扫路径）
+- [ ] **借到第二个微信号后**：跑 `multi-binding-findings.md` §4 的双绑定验证，决定 v3 走向
 - [ ] 跑过 2–3 场真实活动后：把打磨好的 pack 沉淀进 `new-activity` SKILL.md 作为 few-shot 范例（架构文档 §11）
 - [ ] 观察 DeepSeek 的 save_field 误用率，积累数据决定 Phase 3.3 校验策略是否需要调整
 - [ ] SDK 上游问题跟踪：`loginCallbacks` 构造参数被忽略、session 过期重登不转发 callbacks——
