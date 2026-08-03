@@ -56,4 +56,4 @@ import('./core/activity.js').then(async a=>{
 
 - 模拟用的是当前 Claude 模型，真实运行时是 DeepSeek——引导效果可能有差异，
   报告里提醒这一点：模拟主要检验 prompt 设计本身，不是模型表现
-- 不要真的写数据库、不要启动 `npm start`
+- 不要真的写数据库、不要启动 `cli.js serve` / `cli.js run`（那会真连微信、真花 API 额度）

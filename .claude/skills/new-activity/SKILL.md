@@ -52,6 +52,10 @@ Pack 规范的权威定义见 `docs/architecture-v2.md` §4，本 skill 内的�
 }
 ```
 
+可选端口字段（只在需要多活动并行时才加，否则省略走默认）：
+`join_port`（参与者页面，默认 3001）、`web_port`（控制台，默认 3000）。
+两者不能相同，加载器会校验。
+
 **fields.json** — 字段 key 用 snake_case 英文；`label` 用中文；`type` 限 `string` / `boolean`：
 ```json
 {
@@ -89,11 +93,22 @@ node cli.js list
 ```
 
 新活动那行显示 `✗ <slug> — 配置有误` 就按报错逐条修，直到变成 `● <slug>`。
-（`list` 只校验三件套；若加了 `tools.js`，它的错误在 `node cli.js run <slug>` 启动时才报出。）
+（`list` 只校验三件套；若加了 `tools.js`，它的错误要到启动时才报出。）
 
 ### 5. 收尾
 
 - 打印生成的文件清单和内容摘要（字段表 + 开场白 + 关键开关）
-- 若 `activities/` 下已不止一个活动，提醒用户启动时要指定：`node cli.js run <slug>`，
-  并建议在 `activity.json` 里设不同的 `web_port`（默认 3000），以便多活动并行时不撞端口
-- 建议用户接下来用 test-activity skill 模拟一遍对话，检验引导效果
+- 说明两种启动方式的区别：
+
+  | 命令 | 用途 |
+  |---|---|
+  | `node cli.js serve <slug>` | 对外报名：每个参与者打开页面各自扫码建立独立绑定 |
+  | `node cli.js run <slug>` | 本地自测：你自己扫一次码 |
+
+- 若 `activities/` 下已不止一个活动，提醒启动时必须带 slug，并建议在
+  `activity.json` 里给不同活动设不同端口，避免并行时冲突：
+  - `join_port` — 参与者页面（默认 3001，**对外，隧道指向它**）
+  - `web_port` — 运营者控制台（默认 3000，**无鉴权，绝不能暴露**）
+
+- 建议接下来用 test-activity skill 模拟一遍对话，检验引导效果
+- 要真的开跑一场，照 `docs/runbook-live-test.md` 操作（防休眠、隧道、排障）
