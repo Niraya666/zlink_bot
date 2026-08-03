@@ -6,12 +6,17 @@
 
 v2 架构假设「运营者扫码一次，多个参与者给这个微信号发消息」——**该前提不成立**。
 iLink 的实际模型是每个参与者各自扫码建立独立绑定，不存在可加好友的机器人微信号。
-影响范围与验证进度见 `docs/multi-binding-findings.md`。核心待验证项需要第二个微信号。
+
+已实测（2026-08-03）：多绑定可共存、消息不串台 ⇒ v3 的 session-per-participant
+方向成立。同一微信号再次扫码会顶掉自己的旧绑定，故 v3 需回收僵尸实例。
+剩余最大未知：**并发上限**（已测 2 个，真实规模 300）。
+
+详见 `docs/multi-binding-findings.md` 与 `docs/public-exposure-plan.md`。
 
 ## 当前状态
 
-v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正在按 `docs/architecture-v2.md`
-重塑为「可复用 core + 活动 pack」结构，进度见 `docs/dev-plan-v2.md`（Phase 1 已完成）。
+v2 重塑已完成（Phase 1–5 全部完成，M1 + M2 达成）：换活动只写 pack 文件、
+`zlink run` 一键起活动、逃生舱可用。进度见 `docs/dev-plan-v2.md`。
 
 设计文档：`ilink-bot-mac-mini-prototype.md`（v1 原始设计）、`docs/architecture-v2.md`（v2 架构）。
 
@@ -40,7 +45,7 @@ v1 原型已跑通（扫码登录 → 多轮对话 → 网页控制台）。正�
 | 运行时 | Node.js ≥ 22.5（内置 `fetch` 与 `node:sqlite`） |
 | 微信接入 | 社区 SDK：`epiral/weixin-bot` 或 `the-yex/wechat-ilink-sdk`，或参照 wechatbot.dev 协议自实现 |
 | LLM | Anthropic Claude Messages API + tool use |
-| 数据库 | SQLite，使用 Node 内置 `node:sqlite`（无需原生编译；实现见 `src/db.js`） |
+| 数据库 | SQLite，使用 Node 内置 `node:sqlite`（无需原生编译；实现见 `core/store/db.js`） |
 | 进程守护 | `launchd` 或 `pm2`（先手动跑，稳定后再上） |
 
 ## 目录结构
@@ -124,7 +129,7 @@ handleIncomingMessage(msg):
   `type` 限 `string` / `boolean`。同时驱动必收字段判定与 dashboard 列
 - **flow.md** — frontmatter（`tone` / `strictness` / `opening`）+ 正文（引导策略 prompt）
 
-`src/activity.js` 负责加载与校验：一次性列出全部错误并指明文件与字段。
+`core/activity.js` 负责加载与校验：一次性列出全部错误并指明文件与字段。
 活动选择用环境变量 `ACTIVITY`；只有一个 pack 时可省略，多个时不指定会报错拒绝启动。
 `conversation.js` 每收一条消息重新加载 pack，改配置无需重启。
 
