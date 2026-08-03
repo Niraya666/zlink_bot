@@ -101,6 +101,8 @@ node scripts/probe-concurrent-sessions.mjs   # §3.1 + §3.2，约 2 分钟（�
 
 两者都不需要扫码，也不会碰 `~/.wechatbot/`。
 
+待验证项的脚本见 §4：`scripts/probe-dual-binding.mjs`（需要两个微信号）。
+
 ## 4. 待验证 ⏳（需要第二个微信号，无法绕过）
 
 **核心问题：两个绑定各自 `confirmed` 之后，能否同时正常收发消息？**
@@ -114,10 +116,33 @@ node scripts/probe-concurrent-sessions.mjs   # §3.1 + §3.2，约 2 分钟（�
 
 ### 怎么测（约二十分钟，借一台手机即可）
 
-用两个不同 `storageDir` 起两个 `WeChatBot` 实例，各自 `login({callbacks})` 出码，
-用两个微信号分别扫码确认，然后各自发一条消息，观察两边是否都收到、且 `userId` 不同。
+脚本已备好，借到第二个微信号直接跑：
 
-**注意**：测完记得清理这两个临时 `storageDir`，别和你正式的 `~/.wechatbot/` 混起来。
+```bash
+node scripts/probe-dual-binding.mjs
+```
+
+它会做这些事：
+
+1. 用 `data/probe-bindings/{a,b}` 两个独立 `storageDir` 建两个 `WeChatBot`
+   （**不碰 `~/.wechatbot/` 的正式登录态**，已实测确认）
+2. 先出绑定 A 的二维码（**直接在终端渲染成图**，不是只打链接），扫完立即开始长轮询
+3. 再出绑定 B 的二维码 —— **此时紧盯 A 会不会冒出 `session:expired`，这是 Q1 的关键信号**
+4. 两个号各发一条消息，脚本会回一条带 `[A]` / `[B]` 标签的消息
+   —— 手机上收到的标签对不对，直接暴露有没有串台
+5. `Ctrl-C` 退出时打印汇总，自动判定 Q1 / Q2，并清理临时目录
+
+参数：`--keep` 保留凭证目录（下次运行复用、跳过扫码，可用于测"重启后两个绑定是否都还在"）。
+
+不调用 LLM，因此**不需要 `.env` / API key**。
+
+若中途报 `The operation was aborted due to timeout`：`get_qrcode_status` 单次会挂起
+约 45 秒（见 §2），网络抖一下就会抛。脚本会照常汇总，直接重跑一次即可。
+
+### Q3 怎么继续往上加
+
+Q1 / Q2 通过后，把脚本里的 `records` 从 2 个标签扩到 5、10、20，
+逐步逼近真实规模（300 人），观察从第几个开始出现限流或绑定失效。
 
 ## 5. 若验证通过，架构要怎么改
 
