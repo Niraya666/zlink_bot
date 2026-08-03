@@ -99,18 +99,28 @@ export function createConversationHandler(db, callClaude, options = {}) {
     // 否则用户以为没反应就会补发消息。
     let typingTimer = null;
     let typingOn = false;
+
+    // typingFn 返回 Promise，同步 try/catch 接不住它的 rejection。
+    // 这里是 fire-and-forget（setInterval 里没人 await），未捕获的 rejection
+    // 会直接杀掉整个进程——真实活动中就意味着一个人的网络抖动让所有人的
+    // 会话一起断。必须把 Promise 也吞掉。
+    const safeTyping = (on) => {
+      if (!typingFn) return;
+      try {
+        const r = typingFn(on);
+        if (r && typeof r.then === "function") {
+          r.catch(() => {}); // 输入提示失败无关紧要，绝不能影响对话
+        }
+      } catch {
+        // 同步抛错同理
+      }
+    };
+
     const startTyping = () => {
       if (!typingFn || typingOn) return;
       typingOn = true;
-      const ping = () => {
-        try {
-          typingFn(true);
-        } catch {
-          // 提示失败无关紧要，不该影响对话
-        }
-      };
-      ping();
-      typingTimer = setInterval(ping, 8000);
+      safeTyping(true);
+      typingTimer = setInterval(() => safeTyping(true), 8000);
       typingTimer.unref?.();
     };
     // 幂等：send() 与 finally 都会调，别重复向微信发取消请求
@@ -119,11 +129,7 @@ export function createConversationHandler(db, callClaude, options = {}) {
       typingTimer = null;
       if (!typingOn) return;
       typingOn = false;
-      try {
-        typingFn?.(false);
-      } catch {
-        /* 同上 */
-      }
+      safeTyping(false);
     };
 
     const send = async (content) => {

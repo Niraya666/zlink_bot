@@ -15,7 +15,28 @@ import { startServer, state } from "./dashboard/server.js";
  *   参与者页面 (join)  → 对外暴露，走隧道
  *   运营者控制台      → 只监听本地，永不对外
  */
+/**
+ * 兜底：任何一个参与者的网络抖动，都不该杀掉整个进程。
+ *
+ * 多会话模式下一个进程服务全部参与者——进程一死，所有人的会话同时断，
+ * 且已绑定的人需要重新扫码。宁可带着异常继续跑，也不能让一个人的
+ * ECONNRESET 掀掉整桌。日志打全，便于事后定位。
+ */
+function installCrashGuards() {
+  process.on("unhandledRejection", (err) => {
+    console.error(
+      `⚠ 未处理的 Promise 异常（已忽略，服务继续）：${err?.message ?? err}`,
+    );
+    if (err?.stack) console.error(err.stack);
+  });
+  process.on("uncaughtException", (err) => {
+    console.error(`⚠ 未捕获异常（已忽略，服务继续）：${err?.message ?? err}`);
+    if (err?.stack) console.error(err.stack);
+  });
+}
+
 export async function serveActivity(activity) {
+  installCrashGuards();
   console.log(`活动：${activity.name}（${activity.slug}）`);
 
   const db = initDatabase({ eventId: activity.slug, eventName: activity.name });
