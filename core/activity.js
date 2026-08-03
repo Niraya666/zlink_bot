@@ -83,8 +83,9 @@ export function loadActivity(slug = resolveActivitySlug()) {
     dir,
     name: activityJson.name,
     startsAt: activityJson.starts_at ?? null,
-    // Per-activity port lets several activities run side by side.
-    webPort: activityJson.web_port ?? null,
+    // Per-activity ports let several activities run side by side.
+    webPort: activityJson.web_port ?? null, // 运营者控制台（不对外）
+    joinPort: activityJson.join_port ?? null, // 参与者页面（走隧道）
     closeWhenComplete: activityJson.close_when_complete !== false,
     reentryMessage:
       activityJson.reentry_message ??
@@ -154,13 +155,22 @@ function validateActivityJson(json, slug, errors) {
       errors.push(`activity.json: \`${key}\` 必须是字符串`);
     }
   }
-  if (json.web_port !== undefined) {
-    const port = json.web_port;
+  for (const key of ["web_port", "join_port"]) {
+    if (json[key] === undefined) continue;
+    const port = json[key];
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       errors.push(
-        `activity.json: \`web_port\` 必须是 1–65535 的整数（收到 ${JSON.stringify(port)}）`,
+        `activity.json: \`${key}\` 必须是 1–65535 的整数（收到 ${JSON.stringify(port)}）`,
       );
     }
+  }
+  if (
+    json.web_port !== undefined &&
+    json.web_port === json.join_port
+  ) {
+    errors.push(
+      "activity.json: `web_port` 与 `join_port` 不能相同——控制台与参与者页面必须分开监听",
+    );
   }
 }
 

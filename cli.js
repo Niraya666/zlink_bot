@@ -6,25 +6,36 @@ import {
 } from "./core/activity.js";
 import { initDatabase } from "./core/store/db.js";
 import { runActivity } from "./core/run.js";
+import { serveActivity } from "./core/serve.js";
 import { clearSavedLogin } from "./core/channel/session.js";
 
 const USAGE = `zlink — 活动报名机器人
 
 用法：
-  zlink run [活动]              启动活动（只有一个活动时可省略）
+  zlink serve [活动]            多会话模式：每个参与者各自扫码（对外报名用）
+  zlink run [活动]              单绑定模式：你自己扫一次码（本地自测用）
   zlink list                    列出所有活动及报名统计
   zlink export <活动> [--csv]   导出报名数据（默认 JSON）
-  zlink relogin                 清除微信登录态，下次启动重新扫码
+  zlink relogin                 清除单绑定模式的微信登录态
 
 示例：
+  zlink serve demo-day-2026     # 参与者页面 :3001，控制台 :3000
   zlink run demo-day-2026
   zlink export demo-day-2026 --csv > signups.csv
+
+只有一个活动时可省略活动名。
 `;
 
 async function cmdRun(args) {
   const activity = loadActivity(resolveActivitySlug(args[0]));
-  console.log("iLink Bot 启动中...");
+  console.log("iLink Bot 启动中（单绑定模式）...");
   await runActivity(activity);
+}
+
+async function cmdServe(args) {
+  const activity = loadActivity(resolveActivitySlug(args[0]));
+  console.log("iLink Bot 启动中（多会话模式）...");
+  await serveActivity(activity);
 }
 
 async function cmdList() {
@@ -124,6 +135,7 @@ async function cmdRelogin() {
 }
 
 const COMMANDS = {
+  serve: cmdServe,
   run: cmdRun,
   list: cmdList,
   export: cmdExport,
