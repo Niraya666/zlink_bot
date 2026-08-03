@@ -132,19 +132,50 @@ export function createConversationHandler(db, callClaude, options = {}) {
       safeTyping(false);
     };
 
+    // 发送要自己重试：SDK 的重试策略只覆盖 AbortError / TimeoutError
+    //（见 transport/http.js 的 isRetryable），连接类错误（ECONNRESET、
+    // fetch failed）一次失败就直接抛。而消息在发送前已经落库了，
+    // 发不出去就意味着"库里有、用户没收到"，对方只看到沉默。
     const send = async (content) => {
       stopTyping();
       const t = Date.now();
-      await replyFn(content);
+      let lastErr = null;
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await replyFn(content);
+          lastErr = null;
+          if (attempt > 1) timing.sendRetries = attempt - 1;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * attempt));
+        }
+      }
+
       timing.sendMs = Date.now() - t;
+
+      // 三次都失败就不再抛了：抛出去只会让 SDK 打一行 Handler error，
+      // 我们自己的耗时日志反而不会执行。这里打清楚，让复盘能查到。
+      if (lastErr) {
+        timing.sendFailed = true;
+        console.error(
+          `🔴 回复发送失败（已重试 3 次）给 ${wechatUid.slice(0, 12)}…：${lastErr.message}\n` +
+            `   该条回复已存库但未送达，内容开头：${String(content).slice(0, 40)}`,
+        );
+      }
     };
 
     const report = (note = "") => {
       const total = Date.now() - startedAt;
+      const sendPart =
+        `发送 ${(timing.sendMs / 1000).toFixed(1)}s` +
+        (timing.sendRetries ? `/重试${timing.sendRetries}次` : "") +
+        (timing.sendFailed ? "/未送达🔴" : "");
       const detail =
         timing.rounds > 0
-          ? `LLM ${(timing.llmMs / 1000).toFixed(1)}s ×${timing.rounds}轮, 发送 ${(timing.sendMs / 1000).toFixed(1)}s`
-          : `无需 LLM, 发送 ${(timing.sendMs / 1000).toFixed(1)}s`;
+          ? `LLM ${(timing.llmMs / 1000).toFixed(1)}s ×${timing.rounds}轮, ${sendPart}`
+          : `无需 LLM, ${sendPart}`;
       // 超过 10 秒标出来，方便回头定位慢在哪一段
       const slow = total > 10_000 ? "  ⚠ 偏慢" : "";
       console.log(
