@@ -79,8 +79,11 @@ export async function runActivity(activity) {
       `收到消息 [${msg.userId}]: ${msg.text.slice(0, 50)}${msg.text.length > 50 ? "..." : ""}`,
     );
 
-    const replyFn = (text) => bot.reply(msg, text);
-    await handleMessage(msg, replyFn);
+    await handleMessage(
+      msg,
+      (text) => bot.reply(msg, text),
+      (on) => (on ? bot.sendTyping(msg.userId) : bot.stopTyping(msg.userId)),
+    );
   });
 
   // Lifecycle events -> update dashboard state

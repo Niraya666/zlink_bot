@@ -106,7 +106,12 @@ export function createSessionManager({ activity, db, handleMessage }) {
     s.bot.onMessage(async (msg) => {
       s.wechatUid ??= msg.userId;
       s.lastMessageAt = Date.now();
-      await handleMessage(msg, (text) => s.bot.reply(msg, text));
+      await handleMessage(
+        msg,
+        (text) => s.bot.reply(msg, text),
+        (on) =>
+          on ? s.bot.sendTyping(msg.userId) : s.bot.stopTyping(msg.userId),
+      );
     });
 
     // 用我们自己的扫码流程（见 qr-login.js：SDK 自带的那个超时设错了，

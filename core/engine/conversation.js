@@ -65,9 +65,86 @@ export function createConversationHandler(db, callClaude, options = {}) {
   const handlerByName = new Map(customTools.map((t) => [t.definition.name, t.handler]));
   const customDefs = customTools.map((t) => t.definition);
 
-  return async function handleMessage(msg, replyFn) {
+  // 同一用户的消息必须排队串行处理。参与者等不及时几乎必然会补发一条，
+  // 并发处理会让回复乱序——实测出现过「先收到收尾语、16 秒后才收到上一句的回应」。
+  const queues = new Map();
+
+  /**
+   * @param replyFn  发送回复
+   * @param typingFn 可选，(on:boolean) => void，用于显示/取消「正在输入」
+   */
+  return function handleMessage(msg, replyFn, typingFn) {
+    const key = msg.userId;
+    const prev = queues.get(key) ?? Promise.resolve();
+
+    // 前一条即使失败也不能断链，否则该用户后续消息全部卡死
+    const next = prev
+      .catch(() => {})
+      .then(() => processMessage(msg, replyFn, typingFn));
+
+    queues.set(key, next);
+    next.catch(() => {}).finally(() => {
+      if (queues.get(key) === next) queues.delete(key); // 只有队尾才清理
+    });
+    return next;
+  };
+
+  async function processMessage(msg, replyFn, typingFn) {
     const wechatUid = msg.userId;
     const text = msg.text;
+    const startedAt = Date.now();
+    const timing = { llmMs: 0, rounds: 0, sendMs: 0 };
+
+    // 微信的「正在输入」会自己消失，长回合要周期性续上，
+    // 否则用户以为没反应就会补发消息。
+    let typingTimer = null;
+    let typingOn = false;
+    const startTyping = () => {
+      if (!typingFn || typingOn) return;
+      typingOn = true;
+      const ping = () => {
+        try {
+          typingFn(true);
+        } catch {
+          // 提示失败无关紧要，不该影响对话
+        }
+      };
+      ping();
+      typingTimer = setInterval(ping, 8000);
+      typingTimer.unref?.();
+    };
+    // 幂等：send() 与 finally 都会调，别重复向微信发取消请求
+    const stopTyping = () => {
+      if (typingTimer) clearInterval(typingTimer);
+      typingTimer = null;
+      if (!typingOn) return;
+      typingOn = false;
+      try {
+        typingFn?.(false);
+      } catch {
+        /* 同上 */
+      }
+    };
+
+    const send = async (content) => {
+      stopTyping();
+      const t = Date.now();
+      await replyFn(content);
+      timing.sendMs = Date.now() - t;
+    };
+
+    const report = (note = "") => {
+      const total = Date.now() - startedAt;
+      const detail =
+        timing.rounds > 0
+          ? `LLM ${(timing.llmMs / 1000).toFixed(1)}s ×${timing.rounds}轮, 发送 ${(timing.sendMs / 1000).toFixed(1)}s`
+          : `无需 LLM, 发送 ${(timing.sendMs / 1000).toFixed(1)}s`;
+      // 超过 10 秒标出来，方便回头定位慢在哪一段
+      const slow = total > 10_000 ? "  ⚠ 偏慢" : "";
+      console.log(
+        `[对话] ${wechatUid.slice(0, 12)}… 用时 ${(total / 1000).toFixed(1)}s（${detail}）${note}${slow}`,
+      );
+    };
 
     const user = db.getOrCreateUser(wechatUid);
 
@@ -77,7 +154,8 @@ export function createConversationHandler(db, callClaude, options = {}) {
 
     // Skip if user already completed or dropped
     if (user.status === "completed" || user.status === "dropped") {
-      await replyFn(activity.reentryMessage);
+      await send(activity.reentryMessage);
+      report(" [重入]");
       return;
     }
 
@@ -93,10 +171,13 @@ export function createConversationHandler(db, callClaude, options = {}) {
       if (missing.length === 0) {
         db.updateUserStatus(user.id, "completed");
         db.saveMessage(user.id, "assistant", activity.completionMessage);
-        await replyFn(activity.completionMessage);
+        await send(activity.completionMessage);
+        report(" [自动收尾]");
         return;
       }
     }
+
+    startTyping();
 
     const systemPrompt = renderSystemPrompt(activity, collected);
     const tools = [...buildTools(activity), ...customDefs];
@@ -112,11 +193,14 @@ export function createConversationHandler(db, callClaude, options = {}) {
       // Tool use loop: keep calling Claude until it finishes (end_turn)
       // or we hit the iteration limit
       for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+        const t = Date.now();
+        timing.rounds++; // 先计数：调用失败也算一轮，否则日志会写成「无需 LLM」
         const response = await callClaude(
           systemPrompt,
           conversationMessages,
           tools,
         );
+        timing.llmMs += Date.now() - t;
 
         // Apply each call and keep its outcome — the model is told what
         // actually happened, including rejections, so it can correct itself.
@@ -172,11 +256,15 @@ export function createConversationHandler(db, callClaude, options = {}) {
         "assistant",
         "抱歉，我暂时有点卡壳，稍等一下再试试～",
       );
-      await replyFn("抱歉，我暂时有点卡壳，稍等一下再试试～");
+      await send("抱歉，我暂时有点卡壳，稍等一下再试试～");
+      report(` [LLM 失败: ${err.message}]`);
       return;
+    } finally {
+      stopTyping(); // 无论成败都要收掉，别把「正在输入」永远挂着
     }
 
     db.saveMessage(user.id, "assistant", responseText);
-    await replyFn(responseText);
-  };
+    await send(responseText);
+    report();
+  }
 }
