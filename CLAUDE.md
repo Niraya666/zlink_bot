@@ -12,6 +12,7 @@ iLink 的实际模型是每个参与者各自扫码建立独立绑定，不存�
 剩余最大未知：**并发上限**（已测 2 个，真实规模 300）。
 
 详见 `docs/multi-binding-findings.md` 与 `docs/public-exposure-plan.md`。
+实际开跑一场测试照 `docs/runbook-live-test.md` 走。
 
 ## 当前状态
 
@@ -139,13 +140,17 @@ handleIncomingMessage(msg):
 
 ```bash
 npm install
-npm start                          # activities/ 下只有一个活动时
-node cli.js run <slug>             # 有多个活动时指定
+node cli.js serve <slug>           # 多会话：每个参与者各自扫码（对外报名）
+node cli.js run <slug>             # 单绑定：自己扫一次码（本地自测）
 node cli.js list                   # 活动清单 + 报名统计
 node cli.js export <slug> --csv    # 导出报名数据
-node cli.js relogin                # 清除登录态，强制重新扫码
-# 首次运行打印二维码链接，扫码绑定
+node cli.js relogin                # 清除单绑定模式的登录态
 ```
+
+`serve` 起两个服务：参与者页面 `:3001`（对外，隧道指向它）与运营者控制台
+`:3000`（**无鉴权，绝不能暴露**）。端口可在 `activity.json` 用 `join_port` /
+`web_port` 覆盖。真实测试请照 `docs/runbook-live-test.md` 操作（含防休眠、
+named tunnel、排障）。
 
 `npm link` 后可直接用 `zlink <命令>`。活动选择优先级：命令行参数 > `ACTIVITY`
 环境变量 > 唯一 pack；多个 pack 且未指定时报错拒绝启动。

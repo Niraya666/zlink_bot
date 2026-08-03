@@ -56,19 +56,34 @@ skill 对话式完成，`test-activity` 可在上线前模拟一遍对话。
 
 ### 4. 运行
 
+两种模式：
+
 ```bash
-npm start                       # activities/ 下只有一个活动时
-node cli.js run demo-day-2026   # 有多个活动时指定
+# 多会话 —— 对外报名用，每个参与者打开页面各自扫码建立独立绑定
+node cli.js serve demo-day-2026
+
+# 单绑定 —— 本地自测用，你自己扫一次码
+node cli.js run demo-day-2026
 ```
+
+`serve` 会起两个服务：
+
+| 端口 | 用途 | 是否对外 |
+|---|---|---|
+| `:3001` | 参与者页面 | ✅ 隧道指向它 |
+| `:3000` | 运营者控制台 | ❌ **无鉴权，绝不能暴露** |
 
 其他命令：
 
 ```bash
 node cli.js list                          # 列出所有活动及报名统计
 node cli.js export demo-day-2026 --csv    # 导出报名数据（省略 --csv 则为 JSON）
-node cli.js relogin                       # 清除登录态，下次启动重新扫码
+node cli.js relogin                       # 清除单绑定模式的登录态
 node cli.js help
 ```
+
+要在 Mac mini 上跑一场真实报名，照 [docs/runbook-live-test.md](docs/runbook-live-test.md)
+操作——含防休眠、named tunnel 配置、测试期间盯什么、排障。
 
 `npm link` 之后可直接用 `zlink run` / `zlink list` / `zlink export` / `zlink relogin`。
 同时跑多场活动就开多个进程，在各自的 `activity.json` 里设 `web_port` 避免端口冲突。
