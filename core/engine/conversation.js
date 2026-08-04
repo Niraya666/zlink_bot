@@ -271,9 +271,12 @@ export function createConversationHandler(db, callClaude, options = {}) {
             })),
           });
 
-          // If mark_complete was called, stop iterating
+          // If mark_complete was called, stop iterating.
+          // 模型这一轮没生成文本时，用活动自己的收尾话术兜底——
+          // 不能拿通用字符串糊弄过去，那会让参与者错过 pack 里精心写的
+          // 收尾信息（名额、后续流程、注意事项）。
           if (outcomes.some((o) => o.completed)) {
-            responseText = response.text || "感谢你的参与，信息已收集完毕！";
+            responseText = response.text || activity.completionMessage;
             break;
           }
 
