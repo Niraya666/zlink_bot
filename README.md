@@ -106,6 +106,21 @@ npm start         # 重新显示二维码
 > （不会推送到网页控制台，这是 SDK 的已知限制）。控制台此时会提示「登录已失效」，
 > 按提示看终端扫码，或 `npm run relogin` 后重启即可。
 
+## 部署与运行一场真实活动
+
+```bash
+node scripts/preflight.mjs <活动slug>    # 环境自检，缺什么会直接告诉你
+```
+
+| 文档 | 场景 |
+|---|---|
+| [部署到 Mac mini](docs/deploy-mac-mini.md) | launchd 自愈 + 固定域名；家宽 IP，微信风控更稳 |
+| [部署到云主机](docs/deploy-cloud.md) | systemd + 隧道；能 SSH 随时修 |
+| [活动当天运行手册](docs/runbook-live-test.md) | 开跑流程与排障 |
+
+⚠️ 对外开放前必须先跑 `node scripts/probe-dual-binding.mjs`（需两个微信号）
+确认多绑定正常——详见 [multi-binding-findings.md](docs/multi-binding-findings.md)。
+
 ## 项目结构
 
 ```

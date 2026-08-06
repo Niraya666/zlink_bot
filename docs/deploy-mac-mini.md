@@ -14,27 +14,60 @@
 2. **确认 Mac mini 处于登录状态** —— 下面用的是 LaunchAgent，它在用户登录后才启动。
    如果机器可能重启且没开自动登录，服务不会自己回来（见 §6 的取舍说明）。
 
-## 1. 把代码拉到最新
+## 1. 把环境准备好
+
+### 1.1 全新机器：先装工具、再 clone
+
+如果 Mac mini 上还没有这个项目，从这里开始。已经有了就跳到 §1.2。
+
+```bash
+# Homebrew（已有会提示 already installed，无害）
+which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Node ≥ 22.5 —— node:sqlite 依赖它，版本不够会直接跑不起来
+node -v 2>/dev/null || brew install node
+
+# 拉代码（路径可自定，后面 plist 会自动读当前路径）
+mkdir -p ~/project/zlink && cd ~/project/zlink
+git clone git@github.com:Niraya666/zlink_bot.git
+cd zlink_bot
+npm install
+```
+
+> SSH 拉不动就换 HTTPS：
+> `git clone https://github.com/Niraya666/zlink_bot.git`
+
+### 1.2 已有项目：更新到最新
 
 ```bash
 cd ~/project/zlink/zlink_bot     # 按实际路径调整
 git pull
-npm install
-node -v                          # 必须 ≥ v22.5
-node cli.js list                 # 应看到 zchat-23
+npm install                      # 依赖可能有变动
 ```
 
-`.env` 不在 git 里。确认它存在且有 `DEEPSEEK_API_KEY`：
+### 1.3 传 `.env`（唯一无法自动化的一步）
+
+`.env` 不在 git 里，**必须从你的笔记本传过去**。这一步 Mac mini 上的
+OpenClaw 自己做不了，也**不要**把 key 贴进任何聊天窗口：
 
 ```bash
-test -f .env && grep -c DEEPSEEK_API_KEY .env
+# 在你的笔记本上执行
+scp .env <mac-mini地址>:~/project/zlink/zlink_bot/.env
 ```
 
-不存在的话从你的笔记本传过去（**不要**把 key 贴在聊天里）：
+### 1.4 一条命令自检
+
+**不用照着文档逐条猜哪里没配好**，跑这个，缺什么它会直接说：
 
 ```bash
-scp .env <mac-mini>:~/project/zlink/zlink_bot/.env
+node scripts/preflight.mjs zchat-23
 ```
+
+它会检查 Node 版本、依赖、`.env`（只看有没有，不打印值）、`data/` 可写性、
+活动 pack 是否合法、端口是否被占、cloudflared 是否安装、以及到微信服务器的连通性，
+并对每个问题给出修复命令。
+
+**全绿再往下走。**
 
 ## 2. 建 named tunnel（拿到永不变的 URL）
 
@@ -88,10 +121,17 @@ caffeinate -dimsu node cli.js serve zchat-23
 
 ## 4. 配 launchd 自愈
 
-创建 `~/Library/LaunchAgents/com.zlink.serve.plist`：
+**在项目根目录执行**这段——它会自动填入当前路径和 node 的真实位置，
+避免手工替换占位符出错（Apple Silicon 的 node 在 `/opt/homebrew/bin/node`，
+Intel 在 `/usr/local/bin/node`，写错了服务起不来且报错很隐晦）：
 
 ```bash
-cat > ~/Library/LaunchAgents/com.zlink.serve.plist <<'PLIST'
+ACTIVITY=zchat-23          # 改成你要跑的活动
+PROJ="$(pwd)"
+NODE="$(which node)"
+
+mkdir -p ~/Library/LaunchAgents
+cat > ~/Library/LaunchAgents/com.zlink.serve.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,15 +144,15 @@ cat > ~/Library/LaunchAgents/com.zlink.serve.plist <<'PLIST'
   <array>
     <string>/usr/bin/caffeinate</string>
     <string>-dimsu</string>
-    <string>/usr/local/bin/node</string>
+    <string>${NODE}</string>
     <string>--env-file=.env</string>
     <string>cli.js</string>
     <string>serve</string>
-    <string>zchat-23</string>
+    <string>${ACTIVITY}</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/你的用户名/project/zlink/zlink_bot</string>
+  <string>${PROJ}</string>
 
   <!-- 崩了自动拉起，这是整个方案的核心 -->
   <key>KeepAlive</key>
@@ -131,13 +171,13 @@ cat > ~/Library/LaunchAgents/com.zlink.serve.plist <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+echo "已生成，核对一下路径："
+grep -E "opt/homebrew|usr/local|WorkingDirectory" -A1 ~/Library/LaunchAgents/com.zlink.serve.plist
 ```
 
-**两处必须按实际改**：
-
-- `WorkingDirectory` —— 项目绝对路径
-- node 的路径 —— 用 `which node` 查（Homebrew on Apple Silicon 通常是
-  `/opt/homebrew/bin/node`，不是 `/usr/local/bin/node`）
+> 注意这里的 heredoc 用的是 `PLIST` 而非 `'PLIST'`（不加引号），
+> 变量才会被展开。
 
 加载：
 

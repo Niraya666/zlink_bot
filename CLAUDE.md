@@ -14,6 +14,25 @@ iLink 的实际模型是每个参与者各自扫码建立独立绑定，不存�
 详见 `docs/multi-binding-findings.md` 与 `docs/public-exposure-plan.md`。
 实际开跑一场测试照 `docs/runbook-live-test.md` 走。
 
+## 要部署 / 开跑一场活动？
+
+先跑自检，它会告诉你环境缺什么并给出修复命令：
+
+```bash
+node scripts/preflight.mjs <活动slug>
+```
+
+然后按对应文档操作：
+
+| 文档 | 场景 |
+|---|---|
+| `docs/deploy-mac-mini.md` | 部署到 Mac mini（launchd 自愈 + 固定域名），**家宽 IP，风控更稳** |
+| `docs/deploy-cloud.md` | 部署到境外云主机（systemd + 隧道），能 SSH 随时修 |
+| `docs/runbook-live-test.md` | 活动当天的操作与排障 |
+
+⚠️ 无论哪个方案，对外开放前**必须**先跑 `node scripts/probe-dual-binding.mjs`
+（需两个微信号），确认多绑定正常。
+
 ## 当前状态
 
 v2 重塑已完成（Phase 1–5 全部完成，M1 + M2 达成）：换活动只写 pack 文件、
