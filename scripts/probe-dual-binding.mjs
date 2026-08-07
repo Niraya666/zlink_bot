@@ -19,6 +19,9 @@ import { DATA_DIR } from "../core/paths.js";
 
 const PROBE_DIR = path.join(DATA_DIR, "probe-bindings");
 const KEEP = process.argv.includes("--keep");
+// 远程操作时用：终端二维码是十几行彩色块字符，经聊天窗口转述会变成乱码。
+// 二维码内容本来就是个链接，在微信里直接点开等效于扫码。
+const LINKS_ONLY = process.argv.includes("--links-only");
 
 const ts = () => new Date().toTimeString().slice(0, 8);
 const log = (label, msg) => console.log(`[${ts()}] ${label ? `[${label}] ` : ""}${msg}`);
@@ -83,13 +86,15 @@ async function loginBinding(binding) {
     callbacks: {
       // 注意：callbacks 必须传给 login()/run()，构造函数里的 loginCallbacks 会被 SDK 忽略。
       onQrUrl: async (url) => {
-        const art = await qrcode.toString(url, { type: "terminal", small: true });
+        const which = label === "A" ? "第一个" : "第二个";
         console.log(`\n${"─".repeat(60)}`);
-        console.log(`  绑定 ${label} 的二维码 —— 请用${label === "A" ? "第一个" : "第二个"}微信号扫描`);
+        console.log(`  绑定 ${label} —— 请用${which}微信号扫码或点开链接`);
         console.log(`  有效期约 120 秒，过期会自动换新（最多 3 张）`);
         console.log(`${"─".repeat(60)}`);
-        console.log(art);
-        console.log(`  扫不动就用这个链接：${url}\n`);
+        if (!LINKS_ONLY) {
+          console.log(await qrcode.toString(url, { type: "terminal", small: true }));
+        }
+        console.log(`  【绑定 ${label} 的链接】${url}\n`);
       },
       onScanned: () => log(label, "✓ 已扫码，请在手机上确认"),
       onExpired: () => log(label, "⚠ 上一张二维码已过期，正在换新…"),

@@ -114,6 +114,7 @@ node scripts/preflight.mjs <活动slug>    # 环境自检，缺什么会直接�
 
 | 文档 | 场景 |
 |---|---|
+| [远程开跑清单](docs/remote-setup-openclaw.md) | **人不在机器前**，通过 OpenClaw 操作；分步标注谁做什么 |
 | [部署到 Mac mini](docs/deploy-mac-mini.md) | launchd 自愈 + 固定域名；家宽 IP，微信风控更稳 |
 | [部署到云主机](docs/deploy-cloud.md) | systemd + 隧道；能 SSH 随时修 |
 | [活动当天运行手册](docs/runbook-live-test.md) | 开跑流程与排障 |

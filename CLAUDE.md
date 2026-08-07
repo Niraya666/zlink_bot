@@ -26,6 +26,7 @@ node scripts/preflight.mjs <活动slug>
 
 | 文档 | 场景 |
 |---|---|
+| `docs/remote-setup-openclaw.md` | **人不在机器前**，通过 OpenClaw 远程开跑（分步标注谁做什么） |
 | `docs/deploy-mac-mini.md` | 部署到 Mac mini（launchd 自愈 + 固定域名），**家宽 IP，风控更稳** |
 | `docs/deploy-cloud.md` | 部署到境外云主机（systemd + 隧道），能 SSH 随时修 |
 | `docs/runbook-live-test.md` | 活动当天的操作与排障 |
