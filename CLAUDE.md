@@ -156,6 +156,17 @@ handleIncomingMessage(msg):
 
 创建/修改/测试活动用 `.claude/skills/` 下的 `new-activity` / `edit-activity` / `test-activity`。
 
+席位有限的活动另有两个 skill，跑在活动生命周期的两端：
+
+| skill | 什么时候跑 | 产出 |
+|---|---|---|
+| `design-rubric` | 建完 pack、**开始招募前** | `activities/<slug>/rubric.md`，并反查 fields/flow 是否支撑每一维 |
+| `select-participants` | 报名结束后 | 候选组合 + 可反驳的落选理由（**不输出名单**） |
+
+顺序是强制的：报名后才写的 rubric 只能证明「依据可复核」，不能证明
+「没有偏向」——每一维都可能是为已有人选倒推的。rubric 先于报名，
+`git log` 就是证据。
+
 ## 运行方式
 
 ```bash

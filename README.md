@@ -47,6 +47,10 @@ activities/demo-day-2026/
 创建和修改活动不用手写文件——在 Claude Code 里用 `new-activity` / `edit-activity`
 skill 对话式完成，`test-activity` 可在上线前模拟一遍对话。
 
+席位有限、需要筛选的活动还有两个 skill：`design-rubric` 从招募文案派生
+`rubric.md` 并反查字段够不够（**在开始招募前跑**），`select-participants`
+在报名结束后按 rubric 产出候选组合与可反驳的落选理由。
+
 配置覆盖不了的少数情况，pack 还有两个可选逃生舱（见 `activities/example-with-tools/`）：
 
 - `tools.js` — 自定义工具，供模型在对话中调用（查实时名额、发定制内容等）。
