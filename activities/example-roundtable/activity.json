@@ -1,0 +1,8 @@
+{
+  "name": "圆桌夜谈 第07期 · 没有练级区之后",
+  "slug": "example-roundtable",
+  "starts_at": "2026-11-15",
+  "close_when_complete": true,
+  "reentry_message": "你已经报过名啦～副驾名单确认后会有人联系你。有其他问题可以直接找组织者。",
+  "completion_message": "好啦，都记下了，谢谢你愿意认真聊这些！这期副驾只有 6 位，组织者会看完报名情况再确认名单，无论结果都会有人联系你～"
+}

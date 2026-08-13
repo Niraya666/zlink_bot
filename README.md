@@ -73,12 +73,21 @@ node cli.js help
 对话行为全部由 `activities/<slug>/` 下的文件控制：
 
 ```
-activities/zchat-23/
+activities/example-roundtable/
 ├── activity.json   # 元信息与开关（名称、close_when_complete、收尾话术）
 ├── fields.json     # 字段 schema（key / label / type / required）
 ├── flow.md         # 引导策略：frontmatter（tone/strictness/opening）+ 正文 prompt
-└── rubric.md       # （可选）选人标准，席位有限时用
+├── rubric.md       # （可选）选人标准，席位有限时用
+└── recruitment.md  # （可选）招募文案，rubric 的溯源依据
 ```
+
+仓库里带了三个样例包，可以直接抄：
+
+| pack | 看什么 |
+|---|---|
+| `demo-day-2026` | 最小可用配置，三个文件就跑得起来 |
+| `example-with-tools` | 两个逃生舱：自定义工具 ＋ 自定义结果页 |
+| `example-roundtable` | 完整的一场筛选型活动：招募文案 → rubric → 引导策略如何层层对齐 |
 
 - `fields.json` 同时驱动三处：必收字段判定、字段记录、控制台表格的列
 - `close_when_complete: true` 时必收字段收齐即自动收尾
