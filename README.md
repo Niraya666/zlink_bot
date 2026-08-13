@@ -325,3 +325,7 @@ data/                      # 运行时数据，全部 gitignore
 | LLM | DeepSeek（Anthropic Messages API 兼容端点） |
 | 数据库 | SQLite（Node 内置 `node:sqlite`，无需原生编译） |
 | 公网暴露 | Cloudflare Tunnel（出站连接，不开入站端口） |
+
+## License
+
+[MIT](LICENSE)

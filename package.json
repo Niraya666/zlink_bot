@@ -1,8 +1,25 @@
 {
-  "name": "ilink-bot-prototype",
+  "name": "zlink",
   "version": "0.1.0",
   "private": true,
-  "description": "iLink Bot local prototype on Mac mini — WeChat bot with Claude-powered conversations",
+  "description": "WeChat signup bot over the iLink protocol — participants scan their own QR to bind, an LLM collects their profile through conversation. New event = new config files, no code changes.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Niraya666/zlink_bot.git"
+  },
+  "homepage": "https://github.com/Niraya666/zlink_bot#readme",
+  "bugs": {
+    "url": "https://github.com/Niraya666/zlink_bot/issues"
+  },
+  "keywords": [
+    "wechat",
+    "ilink",
+    "chatbot",
+    "llm",
+    "signup",
+    "deepseek"
+  ],
   "type": "module",
   "bin": {
     "zlink": "cli.js"
