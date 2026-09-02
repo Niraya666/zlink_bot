@@ -6,3 +6,6 @@ data/
 .claude/*
 !.claude/skills/
 .DS_Store
+
+# 本地企业内部需求活动（包含内部流程与访谈设计，不进入公开仓库）
+activities/internal-ai-needs-discovery/
