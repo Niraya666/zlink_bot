@@ -89,26 +89,45 @@ function renderPage(activity) {
 <title>${name} · 报名</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
-    background:#0f1115;color:#e8eaed;min-height:100vh;display:flex;align-items:center;
-    justify-content:center;padding:24px}
-  .card{width:100%;max-width:400px;text-align:center}
-  h1{font-size:20px;font-weight:600;margin-bottom:8px}
-  .sub{color:#9aa0a6;font-size:14px;line-height:1.6;margin-bottom:28px}
-  .box{background:#171a1f;border:1px solid #272b33;border-radius:14px;padding:24px;margin-bottom:16px}
-  .qr{background:#fff;padding:10px;border-radius:10px;display:inline-block;line-height:0}
-  .qr img{width:220px;height:220px;display:block}
-  .btn{display:block;width:100%;padding:15px;border-radius:12px;background:#07c160;color:#fff;
-    font-size:16px;font-weight:600;text-decoration:none;border:none;cursor:pointer}
-  .btn:active{opacity:.85}
-  .btn[disabled]{background:#2a2e35;color:#6b7280;cursor:default}
-  .hint{color:#9aa0a6;font-size:13px;margin-top:14px;line-height:1.6}
-  .state{font-size:15px;line-height:1.7}
-  .ok{color:#07c160;font-size:44px;margin-bottom:10px}
-  .err{color:#f87171}
-  .spin{width:26px;height:26px;border:3px solid #2a2e35;border-top-color:#07c160;
-    border-radius:50%;animation:r .8s linear infinite;margin:0 auto 14px}
+  html{background:#fafaf7}
+  body{font-family:Inter,"Avenir Next",-apple-system,BlinkMacSystemFont,"PingFang SC",
+    "Noto Sans SC","Segoe UI",sans-serif;background:#fafaf7;color:#141412;min-height:100vh;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .card{width:100%;max-width:432px;margin:0 auto;padding:40px 22px 80px;text-align:left}
+  h1{font-size:29px;font-weight:800;line-height:1.15;letter-spacing:-.035em;margin-bottom:10px}
+  .sub{color:#8a8a82;font-size:14px;line-height:1.62;margin-bottom:40px;max-width:36em}
+  .box{min-height:284px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;margin-bottom:18px}
+  .qr{background:#fff;padding:13px;border:1px solid #e7e6e0;border-radius:18px;
+    display:inline-block;line-height:0}
+  .qr img{width:220px;height:220px;display:block;border-radius:7px}
+  .btn{display:block;width:100%;padding:14px 16px;border-radius:14px;background:#fdfdfb;
+    color:#141412;font-size:15px;font-weight:650;line-height:1.35;text-decoration:none;
+    border:1px solid #deddd6;cursor:pointer;transition:background .16s ease,border-color .16s ease,
+    transform .16s ease}
+  .btn:hover{background:#f5f4ef;border-color:#cfcec6}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid #141412;outline-offset:3px}
+  .btn[disabled]{background:#f3f2ed;color:#aaa9a2;border-color:#e7e6e0;cursor:default}
+  .hint{color:#8a8a82;font-size:13px;margin-top:14px;line-height:1.6;text-align:center}
+  .state{font-size:15px;line-height:1.7;color:#4f4f49}
+  .ok{width:44px;height:44px;border:1px solid #deddd6;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;color:#141412;font-size:24px;margin:0 auto 14px}
+  .err{color:#a24f46}
+  .spin{width:25px;height:25px;border:2px solid #e2e1da;border-top-color:#141412;
+    border-radius:50%;animation:r .8s linear infinite;margin:0 auto 16px}
   @keyframes r{to{transform:rotate(360deg)}}
+  @media (max-width:480px){
+    .card{padding:32px 20px 64px}
+    h1{font-size:27px}
+    .sub{margin-bottom:30px}
+    .box{min-height:270px}
+    .qr img{width:min(220px,62vw);height:min(220px,62vw)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .btn{transition:none}
+    .spin{animation-duration:1.2s}
+  }
 </style>
 </head>
 <body>
